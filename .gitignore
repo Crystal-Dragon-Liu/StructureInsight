@@ -39,3 +39,12 @@
 
 # debug information files
 *.dwo
+
+# Qt files.
+.qt
+.qtc
+.qtc_clangd
+.qtcreator
+.lupdate
+.cmake
+build
