@@ -48,3 +48,4 @@
 .lupdate
 .cmake
 build
+.DS_Store
