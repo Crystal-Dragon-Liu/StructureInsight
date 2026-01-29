@@ -107,10 +107,31 @@ void Stereonet::computeStereonetGrid(double interval, StereonetType type,
     
     for (int i = 1; i <= ncircles; ++i) {
         double cangle = i * newInterval;
-        QVector<QPointF> circle = smallCircle(axis, cangle, type);
-        if (!circle.isEmpty()) {
-            smallCircles.append(circle);
+        auto [upperCirclePath, lowerCirclePath] =
+            smallCircleWithDoubleDirection(axis, cangle, type);
+        if(upperCirclePath.size() > 360){
+            upperCirclePath.removeLast();
         }
+        if (!upperCirclePath.isEmpty() && i != ncircles) {
+            smallCircles.append(upperCirclePath);
+        }
+
+
+        if(lowerCirclePath.size() > 360){
+            lowerCirclePath.removeLast();
+        }
+        if (!lowerCirclePath.isEmpty()) {
+            smallCircles.append(lowerCirclePath);
+        }
+
+        // QVector<QPointF> circle = smallCircle(axis, cangle, type);
+        // if(circle.size() > 360){
+        //     circle.removeLast();
+        // }
+        // if (!circle.isEmpty()) {
+        //     smallCircles.append(circle);
+        // }
+        // break;
     }
     
     // 绘制大圆圈
@@ -144,7 +165,7 @@ void Stereonet::computeStereonetGrid(double interval, StereonetType type,
     }
 }
 
-QVector<QPointF> Stereonet::smallCircle(const Line& axis, double angle, StereonetType type) const
+QVector<QPointF> Stereonet::smallCircle(Line& axis, double angle, StereonetType type) const
 {
     QVector<QPointF> path;
     
@@ -157,6 +178,7 @@ QVector<QPointF> Stereonet::smallCircle(const Line& axis, double angle, Stereone
         double adjustedPlga = axis.plunge;
         if (adjustedPlga == PI/2.0) {
             adjustedPlga *= 0.9999;
+            axis.plunge =adjustedPlga;
         }
         double angleRad = acos(cos(angle) / cos(adjustedPlga));
         trd = zeroTwoPi(axis.trend + angleRad);
@@ -170,6 +192,10 @@ QVector<QPointF> Stereonet::smallCircle(const Line& axis, double angle, Stereone
         // 使用完整的旋转算法，注意这里我们旋转的是向量
         double rtrd, rplg;
         rotate(axis.trend, axis.plunge, rot, trd, plg, false, rtrd, rplg);
+
+        // 计算立体网坐标
+        // QPointF point = stCoordLine(rtrd, rplg, type);
+        // path.append(point);
         
         // 只添加下半球的点（倾角为正）
         if (rplg >= 0.0) {
@@ -180,6 +206,55 @@ QVector<QPointF> Stereonet::smallCircle(const Line& axis, double angle, Stereone
     }
     
     return path;
+}
+
+std::pair<QVector<QPointF>, QVector<QPointF>> Stereonet::smallCircleWithDoubleDirection(
+    Line& axis,
+    double angle,
+    StereonetType type) const{
+    std::pair<QVector<QPointF>, QVector<QPointF>> returned;
+    QVector<QPointF> upperPath;
+    QVector<QPointF> lowerPath;
+
+    // 找到小圆圈的起点
+    double trd, plg;
+    if ((axis.plunge - angle) >= 0.0) {
+        trd = axis.trend;
+        plg = axis.plunge - angle;
+    } else {
+        double adjustedPlga = axis.plunge;
+        if (adjustedPlga == PI/2.0) {
+            adjustedPlga *= 0.9999;
+            axis.plunge =adjustedPlga;
+        }
+        double angleRad = acos(cos(angle) / cos(adjustedPlga));
+        trd = zeroTwoPi(axis.trend + angleRad);
+        plg = 0.0;
+    }
+
+    // 旋转360度，步长1度
+    for (int i = 0; i < 360; ++i) {
+        double rot = static_cast<double>(i) * PI / 180.0;
+
+        // 使用完整的旋转算法，注意这里我们旋转的是向量
+        double rtrd, rplg;
+        rotate(axis.trend, axis.plunge, rot, trd, plg, false, rtrd, rplg);
+
+        // 计算立体网坐标
+        QPointF point = stCoordLine(rtrd, rplg, type);
+        // if(point.x() < 0){
+        //     continue;
+        // }
+        // 只添加下半球的点（倾角为正）
+        if (rplg >= 0.0) {
+            // 计算立体网坐标
+            upperPath.append(point);
+        }
+        else{
+            lowerPath.append(point);
+        }
+    }
+    return {upperPath, lowerPath};
 }
 
 double Stereonet::zeroTwoPi(double angle) const

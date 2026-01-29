@@ -42,7 +42,10 @@ public:
                              QVector<QVector<QPointF>>& smallCircles) const;
     
     // 计算小圆弧路径
-    QVector<QPointF> smallCircle(const Line& axis, double angle, StereonetType type) const;
+    QVector<QPointF> smallCircle(Line& axis, double angle, StereonetType type) const;
+
+    // 计算上下圆弧路径
+    std::pair<QVector<QPointF>, QVector<QPointF>> smallCircleWithDoubleDirection(Line& axis, double angle, StereonetType type) const;
     
 private:
     // 角度处理

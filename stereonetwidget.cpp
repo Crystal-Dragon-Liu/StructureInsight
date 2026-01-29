@@ -46,21 +46,23 @@ void StereonetWidget::paintEvent(QPaintEvent *event)
     painter.drawEllipse(center, static_cast<int>(m_radius), static_cast<int>(m_radius));
     
     // 绘制小圆圈, 此为错误代码
-    // painter.setPen(QPen(Qt::gray, 0.5));
-    // for (const auto& circle : m_smallCircles) {
-    //     QPainterPath path;
-    //     bool first = true;
-    //     for (const auto& point : circle) {
-    //         QPointF widgetPoint = mapToWidget(point);
-    //         if (first) {
-    //             path.moveTo(widgetPoint);
-    //             first = false;
-    //         } else {
-    //             path.lineTo(widgetPoint);
-    //         }
-    //     }
-    //     painter.drawPath(path);
-    // }
+    painter.setPen(QPen(Qt::gray, 0.5));
+    for (const auto& circle : m_smallCircles) {
+        QPainterPath path;
+        bool first = true;
+        QVector<QPointF> tmpPoints;
+        for (const auto& point : circle) {
+            QPointF widgetPoint = mapToWidget(point);
+            tmpPoints.push_back(widgetPoint);
+            if (first) {
+                path.moveTo(widgetPoint);
+                first = false;
+            } else {
+                path.lineTo(widgetPoint);
+            }
+        }
+        painter.drawPath(path);
+    }
     
     // 绘制大圆圈
     painter.setPen(QPen(Qt::gray, 0.5));
