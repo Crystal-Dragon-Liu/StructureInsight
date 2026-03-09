@@ -47,23 +47,23 @@ public:
     // 计算上下圆弧路径
     std::pair<QVector<QPointF>, QVector<QPointF>> smallCircleWithDoubleDirection(Line& axis, double angle, StereonetType type) const;
     
-private:
     // 角度处理
     double zeroTwoPi(double angle) const;
-    
+
+    // 旋转函数
+    void rotate(double trda, double plga, double rot, double trd, double plg, bool isAxis,
+                double& rtrd, double& rplg) const;
+
+    static constexpr double PI = M_PI;
+    static constexpr double EAST = M_PI / 2.0;
+    static constexpr double WEST = 3.0 * M_PI / 2.0;
+
+private:  
     // 球坐标到笛卡尔坐标转换
     void sphToCart(double trend, double plunge, double& x, double& y, double& z) const;
     
     // 笛卡尔坐标到球坐标转换
     void cartToSph(double x, double y, double z, double& trend, double& plunge) const;
-    
-    // 旋转函数
-    void rotate(double trda, double plga, double rot, double trd, double plg, bool isAxis, 
-                double& rtrd, double& rplg) const;
-    
-    static constexpr double PI = M_PI;
-    static constexpr double EAST = M_PI / 2.0;
-    static constexpr double WEST = 3.0 * M_PI / 2.0;
 };
 
 #endif // STEREONET_H

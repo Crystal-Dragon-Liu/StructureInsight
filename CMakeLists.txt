@@ -11,7 +11,15 @@ qt_standard_project_setup()
 # === 平台特定编译选项（仅影响编译器标志，可提前设置）===
 if(WIN32)
     message(STATUS "Building for Windows")
-    add_compile_options("/utf-8")
+    # 区分 MSVC 和 MinGW 编译器，分别设置 UTF-8 编码参数
+    if(MSVC)
+        # 仅对 MSVC 编译器生效：/utf-8 参数
+        add_compile_options("/utf-8")
+    elseif(MINGW)
+        # 仅对 MinGW (g++) 生效：UTF-8 编码参数（替代 /utf-8）
+        add_compile_options(-finput-charset=utf-8 -fexec-charset=utf-8)
+    endif()
+    # Unicode 定义对所有 Windows 编译器都生效
     add_definitions(-DUNICODE -D_UNICODE)
 
 elseif(APPLE)
