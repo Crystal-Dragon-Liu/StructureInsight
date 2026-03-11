@@ -37,7 +37,8 @@ private:
     double m_radius;
 
     // 旋转相关变量
-    double m_rotY = 0.0;                  // 绕南北轴的旋转角度（弧度）
+    double m_rotX = 0.0;
+    double m_rotY = 0.0;
     QPoint m_lastMousePos;                // 记录鼠标按下位置
     QVector<QVector<QPointF>> m_originalGreatCircles; // 保存原始大圆（避免旋转污染）
     QVector<QVector<QPointF>> m_originalSmallCircles; // 保存原始小圆（避免旋转污染）

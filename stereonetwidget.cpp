@@ -4,15 +4,23 @@
 #include <QBrush>
 #include <QPainterPath>
 #include <QMouseEvent>
+#include <QLineF>
+#include <QtMath>
 
 StereonetWidget::StereonetWidget(QWidget *parent)
     : QWidget(parent),
-      m_projectionType(StereonetType::EqualArea),
-      m_radius(200)
+    m_projectionType(StereonetType::EqualArea),
+    m_rotX(0.0),
+    m_rotY(0.0)
 {
+    // 设置大小策略为可扩展，这样会填充整个可用空间
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    
+    // 初始计算半径
+    m_radius = qMin(width(), height()) / 2.0 - 20;
+    if (m_radius < 50) m_radius = 50; // 设置最小半径
+    
     computeGrid();
-    // 初始化原始网格
-    m_originalGreatCircles = m_greatCircles;
     m_originalSmallCircles = m_smallCircles;
 }
 
@@ -38,80 +46,134 @@ void StereonetWidget::clearPlanes()
 void StereonetWidget::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event);
-    
+
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing, true);
-    
-    // 计算中心点
+
     QPoint center = rect().center();
-    
-    // 绘制立体网参考圆
+
+    // 绘制参考圆
     painter.setPen(QPen(Qt::black, 1));
     painter.drawEllipse(center, static_cast<int>(m_radius), static_cast<int>(m_radius));
-    
-    // 绘制小圆（纬线，绕南北极轴，旋转时不动）
+
+    // 1. 绘制小圆
     painter.setPen(QPen(Qt::gray, 0.5));
+    const double DIST_THRESHOLD = 0.05 * m_radius;
     for (const auto& circle : m_originalSmallCircles) {
         QPainterPath path;
         bool first = true;
+        QPointF lastWp;
+
         for (const auto& p : circle) {
-            QPointF wp = mapToWidget(p);
-            if (first) { path.moveTo(wp); first = false; }
-            else path.lineTo(wp);
+            // 反推原始球坐标
+            double x = p.x();
+            double y = p.y();
+            double x_proj = sqrt(x*x + y*y);
+            if (x_proj < 0.01) {
+                first = true;
+                lastWp = QPointF();
+                continue;
+            }
+            double trend = atan2(x, y);
+            double plunge = 0.0;
+            if (m_projectionType == StereonetType::EqualArea) {
+                plunge = M_PI/2.0 - 2 * asin(x_proj / sqrt(2));
+            } else {
+                plunge = M_PI/2.0 - 2 * atan(x_proj);
+            }
+            plunge = qMax(0.0, plunge);
+
+            // 全向旋转：先绕南北轴（m_rotY），再绕东西轴（m_rotX）
+            double rotatedTrend, rotatedPlunge;
+            // 第一步：绕南北轴旋转（东西转）
+            m_stereonet.rotate(0.0, 0.0, m_rotY, trend, plunge, false, rotatedTrend, rotatedPlunge);
+            // 第二步：绕东西轴旋转（南北转）
+            m_stereonet.rotate(Stereonet::EAST, 0.0, m_rotX, rotatedTrend, rotatedPlunge, false, rotatedTrend, rotatedPlunge);
+
+            // 转回平面坐标+绘制
+            QPointF rotatedP = m_stereonet.stCoordLine(rotatedTrend, rotatedPlunge, m_projectionType);
+            QPointF wp = mapToWidget(rotatedP);
+
+            if (first) {
+                path.moveTo(wp);
+                first = false;
+                lastWp = wp;
+            } else {
+                double dist = QLineF(lastWp, wp).length();
+                if (dist < DIST_THRESHOLD) {
+                    path.lineTo(wp);
+                    lastWp = wp;
+                } else {
+                    first = true;
+                    lastWp = QPointF();
+                }
+            }
         }
         painter.drawPath(path);
     }
-    
-    // 绘制大圆（经线，先旋转极点，再重新生成）
+
+    // 2. 绘制大圆（经线，同步全向旋转）
     painter.setPen(QPen(Qt::gray, 0.5));
     for (int i = 0; i < m_originalGreatCirclePoles.size(); ++i) {
-        // 1. 获取原始极点
         Line originalPole = m_originalGreatCirclePoles[i];
 
-        // 2. 绕南北极轴（trend=0, plunge=0）旋转这个极点
+        // 全向旋转极点：先绕南北轴，再绕东西轴
         double rotatedTrend, rotatedPlunge;
+        // 第一步：绕南北轴旋转（东西转）
         m_stereonet.rotate(0.0, 0.0, m_rotY, originalPole.trend, originalPole.plunge, false, rotatedTrend, rotatedPlunge);
+        // 第二步：绕东西轴旋转（南北转）
+        m_stereonet.rotate(Stereonet::EAST, 0.0, m_rotX, rotatedTrend, rotatedPlunge, false, rotatedTrend, rotatedPlunge);
 
-        // 3. 用旋转后的极点生成新的平面
+        // 生成旋转后的大圆
         Line rotatedPole;
         rotatedPole.trend = rotatedTrend;
         rotatedPole.plunge = rotatedPlunge;
         Plane rotatedPlane = m_stereonet.planeFromPole(rotatedPole);
+        QVector<QPointF> circle = m_stereonet.greatCircle(rotatedPlane, m_projectionType);
 
-        // 4. 用新平面重新生成大圆弧
-        QVector<QPointF> path = m_stereonet.greatCircle(rotatedPlane, m_projectionType);
-
-        // 5. 绘制这条经线
+        // 绘制大圆（过滤收敛点，避免射线）
         QPainterPath painterPath;
         bool first = true;
-        for (const auto& p : path) {
+        QPointF lastWp;
+        for (const auto& p : circle) {
             QPointF wp = mapToWidget(p);
-            if (first) { painterPath.moveTo(wp); first = false; }
-            else painterPath.lineTo(wp);
+            if (first) {
+                painterPath.moveTo(wp);
+                first = false;
+                lastWp = wp;
+            } else {
+                double dist = QLineF(lastWp, wp).length();
+                if (dist < DIST_THRESHOLD) {
+                    painterPath.lineTo(wp);
+                    lastWp = wp;
+                } else {
+                    first = true;
+                    lastWp = QPointF();
+                }
+            }
         }
         painter.drawPath(painterPath);
     }
-    
-    // 绘制平面的大圆弧
+
+    // 3. 绘制平面
     painter.setPen(QPen(Qt::red, 1.5));
     for (const auto& plane : m_planes) {
-        // 步骤1：获取平面的原始极点（核心：和网格旋转逻辑对齐）
+        // 获取平面原始极点
         Line planePole = m_stereonet.poleFromPlane(plane);
 
-        // 步骤2：绕南北极轴旋转这个极点（和网格用同一个旋转角度m_rotY）
+        // 全向旋转极点
         double rotatedTrend, rotatedPlunge;
         m_stereonet.rotate(0.0, 0.0, m_rotY, planePole.trend, planePole.plunge, false, rotatedTrend, rotatedPlunge);
+        m_stereonet.rotate(Stereonet::EAST, 0.0, m_rotX, rotatedTrend, rotatedPlunge, false, rotatedTrend, rotatedPlunge);
 
-        // 步骤3：用旋转后的极点生成新平面
+        // 生成旋转后的平面大圆弧
         Line rotatedPole;
         rotatedPole.trend = rotatedTrend;
         rotatedPole.plunge = rotatedPlunge;
         Plane rotatedPlane = m_stereonet.planeFromPole(rotatedPole);
-
-        // 步骤4：用新平面生成旋转后的大圆弧（原生规则，无扭曲）
         QVector<QPointF> rotatedGreatCircle = m_stereonet.greatCircle(rotatedPlane, m_projectionType);
 
-        // 步骤5：绘制旋转后的平面大圆弧（无需额外过滤，原生圆弧自动适配基圆）
+        // 绘制平面大圆弧
         QPainterPath path;
         bool first = true;
         for (const auto& p : rotatedGreatCircle) {
@@ -121,15 +183,15 @@ void StereonetWidget::paintEvent(QPaintEvent *event)
         }
         painter.drawPath(path);
 
-        // 绘制极点（旋转后的极点，和平面同步）
+        // 绘制平面极点
         QPointF polePoint = m_stereonet.stCoordLine(rotatedTrend, rotatedPlunge, m_projectionType);
         QPointF widgetPolePoint = mapToWidget(polePoint);
         painter.setBrush(QBrush(Qt::blue));
         painter.drawEllipse(widgetPolePoint, 3, 3);
         painter.setBrush(Qt::NoBrush);
     }
-    
-    // 绘制方向标记
+
+    // 方向标记
     painter.setPen(QPen(Qt::black, 1));
     painter.drawText(mapToWidget(QPointF(0, 1)) + QPointF(0, -10), "N");
     painter.drawText(mapToWidget(QPointF(1, 0)) + QPointF(10, 0), "E");
@@ -140,25 +202,29 @@ void StereonetWidget::paintEvent(QPaintEvent *event)
 void StereonetWidget::resizeEvent(QResizeEvent *event)
 {
     Q_UNUSED(event);
-    
-    // 更新半径
+    // 计算新的半径，取宽度和高度的最小值的一半，并留出边距
     m_radius = qMin(width(), height()) / 2.0 - 20;
+    // 设置最小半径，确保在小窗口中也能显示
+    if (m_radius < 50) m_radius = 50;
+    // 重新计算网格并更新显示
     computeGrid();
+    update();
 }
 
+// 生成网格
 void StereonetWidget::computeGrid()
 {
     double interval = M_PI / 18.0; // 10度
+    // 调用Stereonet生成网格
     m_stereonet.computeStereonetGrid(interval, m_projectionType, m_greatCircles, m_smallCircles);
 
-    // 保存原始网格
-    m_originalGreatCircles = m_greatCircles;
+    // 保存原始小圆
     m_originalSmallCircles = m_smallCircles;
 
-    // 重新生成并保存原始极点，以匹配computeStereonetGrid的规则
+    // 重新生成并保存原始大圆极点
     m_originalGreatCirclePoles.clear();
-    int ncircles = static_cast<int>(Stereonet::PI / (interval * 2.0));
-    double newInterval = Stereonet::PI / (ncircles * 2.0);
+    int ncircles = static_cast<int>(M_PI / (interval * 2.0));
+    double newInterval = M_PI / (ncircles * 2.0);
     for (int i = 0; i <= ncircles * 2; ++i) {
         Line pole;
         if (i <= ncircles) {
@@ -173,6 +239,9 @@ void StereonetWidget::computeGrid()
         }
         m_originalGreatCirclePoles.append(pole);
     }
+
+    // 保存原始大圆
+    m_originalGreatCircles = m_greatCircles;
 }
 
 QPointF StereonetWidget::mapToWidget(const QPointF& point) const
@@ -186,7 +255,6 @@ double StereonetWidget::widgetToStereonet(double value) const
     return value / m_radius;
 }
 
-// 鼠标按下事件：记录初始位置
 void StereonetWidget::mousePressEvent(QMouseEvent *event)
 {
     if (event->button() == Qt::LeftButton) {
@@ -194,15 +262,21 @@ void StereonetWidget::mousePressEvent(QMouseEvent *event)
     }
 }
 
-// 鼠标拖动事件：仅处理左右拖动，更新旋转角度
+// 全向旋转鼠标事件
 void StereonetWidget::mouseMoveEvent(QMouseEvent *event)
 {
     if (event->buttons() & Qt::LeftButton) {
-        int dx = event->pos().x() - m_lastMousePos.x();
-        m_rotY -= dx * 0.003; // 灵敏度
-        m_rotY = m_stereonet.zeroTwoPi(m_rotY);
+        int dx = event->pos().x() - m_lastMousePos.x(); // 左右拖动=东西转
+        int dy = event->pos().y() - m_lastMousePos.y(); // 上下拖动=南北转
+
+        // 更新旋转角度
+        m_rotY -= dx * 0.003; // 绕南北轴（东西转）
+        m_rotX += dy * 0.003; // 绕东西轴（南北转）
+
+        // 角度限制
+        // m_rotY = m_stereonet.zeroTwoPi(m_rotY);
+        // m_rotX = qBound(-1.471, m_rotX, 1.471);
         m_lastMousePos = event->pos();
         update();
     }
 }
-
