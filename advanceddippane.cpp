@@ -3,7 +3,9 @@
 #include "stereonetwidget.h"
 #include "stereonetcontrolpane.h"
 #include "rosecontrolpane.h"
+#include "rosewidget.h"
 #include <QVBoxLayout>
+#include <QRandomGenerator>
 #include <QComboBox>
 
 AdvancedDipPane::AdvancedDipPane(QWidget *parent)
@@ -15,6 +17,9 @@ AdvancedDipPane::AdvancedDipPane(QWidget *parent)
     // 设置 stackedWidget 默认显示 stereonetWrapper (索引0)
     ui->stackedWidget->setCurrentIndex(0);
     
+    // 默认选中 stereonetBtn
+    ui->stereonetBtn->setChecked(true);
+    
     // 初始化各个组件
     setupStereonetWrapper();
     setupRoseWrapper();
@@ -23,6 +28,16 @@ AdvancedDipPane::AdvancedDipPane(QWidget *parent)
     // 连接 stackedWidget 的切换信号
     connect(ui->stackedWidget, &QStackedWidget::currentChanged, 
             this, &AdvancedDipPane::onStackedWidgetChanged);
+    
+    // 连接 radioButton 的信号
+    connect(ui->stereonetBtn, &QRadioButton::toggled, 
+            this, &AdvancedDipPane::onRadioButtonToggled);
+    connect(ui->rosePlotBtn, &QRadioButton::toggled, 
+            this, &AdvancedDipPane::onRadioButtonToggled);
+    connect(ui->walkoutBtn, &QRadioButton::toggled, 
+            this, &AdvancedDipPane::onRadioButtonToggled);
+    connect(ui->crossSectionBtn, &QRadioButton::toggled, 
+            this, &AdvancedDipPane::onRadioButtonToggled);
 }
 
 AdvancedDipPane::~AdvancedDipPane()
@@ -47,12 +62,35 @@ void AdvancedDipPane::setupStereonetWrapper()
 
 void AdvancedDipPane::setupRoseWrapper()
 {
+    m_roseWidget = new RoseWidget(ui->roseWrapper);
+    m_roseWidget->setMinimumSize(200, 200); // 设置一个更小的最小尺寸
+    m_roseWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     // 为 roseWrapper 添加一个占位标签（后续可以替换为 RosePlotWidget）
     QVBoxLayout *roseLayout = qobject_cast<QVBoxLayout*>(ui->roseWrapper->layout());
     if (roseLayout) {
         // 这里可以添加 RosePlotWidget
         // 目前先留空或添加占位符
+        roseLayout->addWidget(m_roseWidget);
     }
+
+    // 做一些模拟数据
+    // 生成随机的strike数据
+    QVector<int> strikes;
+    int count = 120;
+    // 生成一些随机数据，模拟不同方向的分布
+    for (int i = 0; i < 60; i++) {
+        strikes.append(QRandomGenerator::global()->bounded(360));
+    }
+    for (int i = 0; i < 20; i++) {
+        strikes.append(QRandomGenerator::global()->bounded(10, 60));
+    }
+    for (int i = 0; i < 20; i++) {
+        strikes.append(QRandomGenerator::global()->bounded(190, 300));
+    }
+    for (int i = 0; i < 20; i++) {
+        strikes.append(QRandomGenerator::global()->bounded(60, 90));
+    }
+    m_roseWidget->setStrikes(strikes);
 }
 
 void AdvancedDipPane::setupControlPane()
@@ -69,10 +107,11 @@ void AdvancedDipPane::onStackedWidgetChanged(int index)
         return;
     }
     
-    // 删除现有的控制面板
+    // 移除现有的控制面板，但不删除它们，只是从布局中移除
     while (QLayoutItem *item = controlLayout->takeAt(0)) {
         if (QWidget *widget = item->widget()) {
-            widget->deleteLater();
+            // 从布局中移除，但不删除
+            widget->setParent(nullptr);
         }
         delete item;
     }
@@ -81,28 +120,31 @@ void AdvancedDipPane::onStackedWidgetChanged(int index)
         // 显示 stereonetWrapper，加载 StereonetControlPane
         if (!m_stereonetControlPane) {
             m_stereonetControlPane = new StereonetControlPane(this);
+            
+            // 只连接一次信号
+            if (QComboBox *projectionCombo = m_stereonetControlPane->findChild<QComboBox*>("projectionComboBox")) {
+                connect(projectionCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                        this, &AdvancedDipPane::onProjectionTypeChanged);
+            }
+            if (QPushButton *addPlaneBtn = m_stereonetControlPane->findChild<QPushButton*>("addPlaneBtn")) {
+                connect(addPlaneBtn, &QPushButton::clicked,
+                        this, &AdvancedDipPane::onAddPlaneClicked);
+            }
+            if (QPushButton *clearBtn = m_stereonetControlPane->findChild<QPushButton*>("clearBtn")) {
+                connect(clearBtn, &QPushButton::clicked,
+                        this, &AdvancedDipPane::onClearClicked);
+            }
         }
+        // 设置父控件并添加到布局
+        m_stereonetControlPane->setParent(ui->controlPane);
         controlLayout->addWidget(m_stereonetControlPane);
-        
-        // 连接 StereonetControlPane 的信号
-        // 这里假设 StereonetControlPane 有相应的控件，我们通过 findChild 来获取
-        if (QComboBox *projectionCombo = m_stereonetControlPane->findChild<QComboBox*>("projectionComboBox")) {
-            connect(projectionCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                    this, &AdvancedDipPane::onProjectionTypeChanged);
-        }
-        if (QPushButton *addPlaneBtn = m_stereonetControlPane->findChild<QPushButton*>("addPlaneBtn")) {
-            connect(addPlaneBtn, &QPushButton::clicked,
-                    this, &AdvancedDipPane::onAddPlaneClicked);
-        }
-        if (QPushButton *clearBtn = m_stereonetControlPane->findChild<QPushButton*>("clearBtn")) {
-            connect(clearBtn, &QPushButton::clicked,
-                    this, &AdvancedDipPane::onClearClicked);
-        }
     } else if (index == 1) {
         // 显示 roseWrapper，加载 RoseControlPane
         if (!m_roseControlPane) {
             m_roseControlPane = new RoseControlPane(this);
         }
+        // 设置父控件并添加到布局
+        m_roseControlPane->setParent(ui->controlPane);
         controlLayout->addWidget(m_roseControlPane);
     }
 }
@@ -145,4 +187,23 @@ void AdvancedDipPane::onProjectionTypeChanged(int index)
     
     StereonetType type = (index == 0) ? StereonetType::EqualArea : StereonetType::EqualAngle;
     m_stereonetWidget->setProjectionType(type);
+}
+
+void AdvancedDipPane::onRadioButtonToggled(bool checked)
+{
+    if (!checked) {
+        return; // 只处理选中的情况
+    }
+    
+    if (sender() == ui->stereonetBtn) {
+        // 切换到 stereonetWrapper
+        ui->stackedWidget->setCurrentIndex(0);
+    } else if (sender() == ui->rosePlotBtn) {
+        // 切换到 roseWrapper
+        ui->stackedWidget->setCurrentIndex(1);
+    } else if (sender() == ui->walkoutBtn) {
+        // 暂不处理，因为还未实现
+    } else if (sender() == ui->crossSectionBtn) {
+        // 暂不处理，因为还未实现
+    }
 }

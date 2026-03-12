@@ -32,6 +32,38 @@
       <item>
        <widget class="QListWidget" name="listWidget"/>
       </item>
+      <item>
+       <widget class="QGroupBox" name="dataAccess">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="title">
+         <string>Data Access</string>
+        </property>
+        <layout class="QHBoxLayout" name="horizontalLayout_2">
+         <item>
+          <widget class="QLineEdit" name="lineEdit"/>
+         </item>
+         <item>
+          <widget class="QPushButton" name="browserBtn">
+           <property name="text">
+            <string>...</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="loadDataBtn">
+           <property name="text">
+            <string>Load</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>
@@ -129,44 +161,36 @@
        </widget>
       </item>
       <item>
-       <widget class="QGroupBox" name="dataAccess">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
+       <widget class="QGroupBox" name="plotType">
         <property name="title">
-         <string>Data Access</string>
+         <string>Plot type</string>
         </property>
-        <layout class="QHBoxLayout" name="horizontalLayout_2">
+        <layout class="QHBoxLayout" name="horizontalLayout_3">
          <item>
-          <widget class="QLineEdit" name="lineEdit"/>
-         </item>
-         <item>
-          <spacer name="horizontalSpacer">
-           <property name="orientation">
-            <enum>Qt::Orientation::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-         <item>
-          <widget class="QPushButton" name="browserBtn">
+          <widget class="QRadioButton" name="stereonetBtn">
            <property name="text">
-            <string>...</string>
+            <string>Stereonet</string>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QPushButton" name="loadDataBtn">
+          <widget class="QRadioButton" name="rosePlotBtn">
            <property name="text">
-            <string>Load</string>
+            <string>Rose Plot</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QRadioButton" name="walkoutBtn">
+           <property name="text">
+            <string>Walkout</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QRadioButton" name="crossSectionBtn">
+           <property name="text">
+            <string>Cross Section</string>
            </property>
           </widget>
          </item>

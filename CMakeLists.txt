@@ -55,6 +55,7 @@ qt_add_executable(EVStereonet
     advanceddippane.h advanceddippane.cpp advanceddippane.ui
     stereonetcontrolpane.h stereonetcontrolpane.cpp stereonetcontrolpane.ui
     rosecontrolpane.h rosecontrolpane.cpp rosecontrolpane.ui
+    rosewidget.h rosewidget.cpp
 )
 
 # === 添加翻译 ===

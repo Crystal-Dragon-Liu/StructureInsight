@@ -10,6 +10,7 @@ class AdvancedDipPane;
 class StereonetWidget;
 class StereonetControlPane;
 class RoseControlPane;
+class RoseWidget;
 
 class AdvancedDipPane : public QWidget
 {
@@ -24,6 +25,7 @@ private slots:
     void onAddPlaneClicked();
     void onClearClicked();
     void onProjectionTypeChanged(int index);
+    void onRadioButtonToggled(bool checked);
 
 private:
     void setupStereonetWrapper();
@@ -37,6 +39,7 @@ private:
     StereonetControlPane *m_stereonetControlPane = nullptr;
     
     // Rose plot 相关
+    RoseWidget* m_roseWidget = nullptr;
     RoseControlPane *m_roseControlPane = nullptr;
 };
 
