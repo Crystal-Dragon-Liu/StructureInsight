@@ -26,6 +26,7 @@ private slots:
     void onClearClicked();
     void onProjectionTypeChanged(int index);
     void onRadioButtonToggled(bool checked);
+    void onDataBrowserBtnClicked();
 
 private:
     void setupStereonetWrapper();

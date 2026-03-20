@@ -7,6 +7,8 @@
 #include <QVBoxLayout>
 #include <QRandomGenerator>
 #include <QComboBox>
+#include <QFileDialog>
+#include <QDir>
 
 AdvancedDipPane::AdvancedDipPane(QWidget *parent)
     : QWidget(parent)
@@ -38,6 +40,8 @@ AdvancedDipPane::AdvancedDipPane(QWidget *parent)
             this, &AdvancedDipPane::onRadioButtonToggled);
     connect(ui->crossSectionBtn, &QRadioButton::toggled, 
             this, &AdvancedDipPane::onRadioButtonToggled);
+    connect(ui->browserBtn, &QPushButton::clicked,
+            this, &AdvancedDipPane::onDataBrowserBtnClicked);
 }
 
 AdvancedDipPane::~AdvancedDipPane()
@@ -187,6 +191,22 @@ void AdvancedDipPane::onProjectionTypeChanged(int index)
     
     StereonetType type = (index == 0) ? StereonetType::EqualArea : StereonetType::EqualAngle;
     m_stereonetWidget->setProjectionType(type);
+}
+
+void AdvancedDipPane::onDataBrowserBtnClicked(){
+    // 打开文件选择对话框，只允许选择.csv文件
+    QDir currentDir = QDir::current();
+    QString filePath = QFileDialog::getOpenFileName(
+        this,
+        "choose dip vector data with .CSV format",
+        currentDir.path(),
+        "CSV file (*.csv);;All files (*.*)"
+        );
+
+    if (!filePath.isEmpty()) {
+        // 更新lineEdit显示选中的文件路径
+        ui->lineEdit->setText(filePath);
+    }
 }
 
 void AdvancedDipPane::onRadioButtonToggled(bool checked)
