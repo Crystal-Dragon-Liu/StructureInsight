@@ -63,6 +63,7 @@ qt_add_executable(EVStereonet
     floatpropertyitem.h floatpropertyitem.cpp
     multiselectpropertyitem.h multiselectpropertyitem.cpp
     propertypanel.h propertypanel.cpp
+    singleselectpropertyitem.h singleselectpropertyitem.cpp
 
 )
 

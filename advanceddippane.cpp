@@ -13,6 +13,10 @@
 #include <QListWidgetItem>
 #include "propertypanel.h"
 #include "propertygroup.h"
+// #include "intpropertyitem.h"
+#include "floatpropertyitem.h"
+#include "multiselectpropertyitem.h"
+#include "singleselectpropertyitem.h"
 AdvancedDipPane::AdvancedDipPane(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::AdvancedDipPane), m_dataInterface(nullptr)
@@ -53,12 +57,30 @@ AdvancedDipPane::AdvancedDipPane(QWidget *parent)
 }
 
 void AdvancedDipPane::initPropertyPanel(){
-    QVBoxLayout* propertyLayout = new QVBoxLayout(ui->rightPropertyPanelWrapper);
-    ui->rightPropertyPanelWrapper->setLayout(propertyLayout);
+    // QVBoxLayout* propertyLayout = new QVBoxLayout(ui->rightPropertyPanelWrapper);
+    QLayout* layout = ui->rightPropertyPanelWrapper->layout();
+    ui->rightPropertyPanelWrapper->setLayout(layout);
     m_propertyPanel = new PropertyPanel(ui->rightPropertyPanelWrapper);
-    propertyLayout->addWidget(m_propertyPanel);
-    // PropertyGroup* stereonetGroup = new PropertyGroup();
-    // m_propertyPanel->addGroup();
+    layout->addWidget(m_propertyPanel);
+
+    // 通用属性
+
+    // Stereonet相关属性
+    PropertyGroup* stereonetGroup = new PropertyGroup(tr("Stereonet"), m_propertyPanel);
+
+    FloatPropertyItem* initialXRotation  = new FloatPropertyItem(tr("Initial X Rotation"), 0.0, 360.0, 90.0, stereonetGroup);
+    stereonetGroup->addProperty(initialXRotation);
+
+    FloatPropertyItem* initialYRotation  = new FloatPropertyItem(tr("Initial Y Rotation"), 0.0, 360.0, 0.0, stereonetGroup);
+    stereonetGroup->addProperty(initialYRotation);
+
+    SingleSelectPropertyItem* showPlane = new SingleSelectPropertyItem(tr("Show Plane"), {tr("Yes"), tr("No")}, 0, stereonetGroup);
+    stereonetGroup->addProperty(showPlane);
+
+    SingleSelectPropertyItem* projectionType = new SingleSelectPropertyItem(tr("Projection Type"), {tr("Equal-Area"), tr("Equal-Angle")}, 0, stereonetGroup);
+    stereonetGroup->addProperty(projectionType);
+
+    m_propertyPanel->addGroup(stereonetGroup);
 }
 
 AdvancedDipPane::~AdvancedDipPane()

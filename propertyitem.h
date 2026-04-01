@@ -10,7 +10,8 @@ public:
     enum PropertyType{
         Integer,
         Float,
-        MultiSelect
+        MultiSelect,
+        SingleSelect
     };
     explicit PropertyItem(const QString& name, PropertyType type, QWidget *parent = nullptr);
     virtual ~PropertyItem();

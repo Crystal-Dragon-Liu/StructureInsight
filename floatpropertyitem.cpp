@@ -8,11 +8,13 @@ FloatPropertyItem::FloatPropertyItem(const QString& name, double min, double max
     : PropertyItem(name, Float, parent){
     QHBoxLayout* layout = qobject_cast<QHBoxLayout*>(this->layout());
 
+    QLabel* itemName = new QLabel(this);
+    itemName->setText(name + ": ");
     m_spinBox = new QDoubleSpinBox(this);
     m_spinBox->setRange(min, max);
     m_spinBox->setValue(defaultValue);
     m_spinBox->setDecimals(2);
-
+    layout->addWidget(itemName);
     layout->addWidget(m_spinBox);
     layout->addStretch();
 

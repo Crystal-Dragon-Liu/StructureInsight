@@ -18,7 +18,10 @@ PropertyPanel::PropertyPanel(QWidget* parent)
     m_scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 
+    m_scrollArea->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Expanding);
+
     m_scrollWidget = new QWidget(this);
+    m_scrollWidget->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Preferred);
     m_scrollLayout = new QVBoxLayout(m_scrollWidget);
     m_scrollLayout->setContentsMargins(5, 5, 5, 5);
     m_scrollLayout->setSpacing(5);
@@ -26,6 +29,8 @@ PropertyPanel::PropertyPanel(QWidget* parent)
 
     m_scrollArea->setWidget(m_scrollWidget);
     m_mainLayout->addWidget(m_scrollArea);
+    // 确保面板能够计算合适的大小
+    setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Expanding);
 }
 
 PropertyPanel::~PropertyPanel()
