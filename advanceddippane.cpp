@@ -9,10 +9,13 @@
 #include <QComboBox>
 #include <QFileDialog>
 #include <QDir>
-
+#include "dipdataaccess.h"
+#include <QListWidgetItem>
+#include "propertypanel.h"
+#include "propertygroup.h"
 AdvancedDipPane::AdvancedDipPane(QWidget *parent)
     : QWidget(parent)
-    , ui(new Ui::AdvancedDipPane)
+    , ui(new Ui::AdvancedDipPane), m_dataInterface(nullptr)
 {
     ui->setupUi(this);
     
@@ -42,11 +45,26 @@ AdvancedDipPane::AdvancedDipPane(QWidget *parent)
             this, &AdvancedDipPane::onRadioButtonToggled);
     connect(ui->browserBtn, &QPushButton::clicked,
             this, &AdvancedDipPane::onDataBrowserBtnClicked);
+    connect(ui->listWidget, &QListWidget::itemClicked,
+            this, &AdvancedDipPane::onListWidgetItemClicked);
+    m_dataInterface = new DipDataAccess();
+    // 构建属性面板
+    initPropertyPanel();
+}
+
+void AdvancedDipPane::initPropertyPanel(){
+    QVBoxLayout* propertyLayout = new QVBoxLayout(ui->rightPropertyPanelWrapper);
+    ui->rightPropertyPanelWrapper->setLayout(propertyLayout);
+    m_propertyPanel = new PropertyPanel(ui->rightPropertyPanelWrapper);
+    propertyLayout->addWidget(m_propertyPanel);
+    // PropertyGroup* stereonetGroup = new PropertyGroup();
+    // m_propertyPanel->addGroup();
 }
 
 AdvancedDipPane::~AdvancedDipPane()
 {
     delete ui;
+    delete m_dataInterface;
 }
 
 void AdvancedDipPane::setupStereonetWrapper()
@@ -193,6 +211,24 @@ void AdvancedDipPane::onProjectionTypeChanged(int index)
     m_stereonetWidget->setProjectionType(type);
 }
 
+void AdvancedDipPane::onListWidgetItemClicked(QListWidgetItem *item){
+    if(!item){
+        return;
+    }
+
+    // 获取选中item的文本（即倾角类型）
+    QString type = item->text();
+    // 这里可以使用获取到的type进行后续操作
+    qDebug() << "选中的倾角类型：" << type;
+    QVector<DipData> typeData;
+    this->m_dataInterface->getDataByType(type, typeData);
+    QVector<int> strikes;
+    foreach(auto dipData, typeData){
+        strikes.push_back(static_cast<int>(dipData.strike));
+    }
+    m_roseWidget->setStrikes(strikes);
+}
+
 void AdvancedDipPane::onDataBrowserBtnClicked(){
     // 打开文件选择对话框，只允许选择.csv文件
     QDir currentDir = QDir::current();
@@ -206,6 +242,22 @@ void AdvancedDipPane::onDataBrowserBtnClicked(){
     if (!filePath.isEmpty()) {
         // 更新lineEdit显示选中的文件路径
         ui->lineEdit->setText(filePath);
+    }
+
+    // 更新数据
+
+    bool goodInput = this->m_dataInterface->fetchDataFromFile(filePath);
+    if(!goodInput){
+        return;
+    }
+    QVector<QString> defaultDipData;
+    this->m_dataInterface->getDipClassSet(defaultDipData);
+
+    // 更新数据到listWidget当中
+    ui->listWidget->clear();
+    // 添加倾角类型到listWidget
+    foreach(auto type, defaultDipData) {
+        ui->listWidget->addItem(type);
     }
 }
 

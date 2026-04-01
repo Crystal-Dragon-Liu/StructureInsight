@@ -27,6 +27,7 @@ public:
      */
     bool getDataByType(const QString& type, QVector<DipData>& output) const;
     bool getAllData(QVector<DipData>& data) const;
+    bool getDipClassSet(QVector<QString>& data) const;
 private:
     QVector<DipData> m_data;
 };

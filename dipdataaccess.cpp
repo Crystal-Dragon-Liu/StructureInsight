@@ -1,6 +1,7 @@
 #include "dipdataaccess.h"
 #include <QFile>
 #include <QTextStream>
+#include <set>
 DipDataAccess::DipDataAccess() {}
 
 bool DipDataAccess::fetchDataFromFile(const QString& dipFilePath){
@@ -93,5 +94,19 @@ bool DipDataAccess::getDataByType(const QString& type, QVector<DipData>& output)
 
 bool DipDataAccess::getAllData(QVector<DipData>& data) const{
     data = m_data;
+    return true;
+}
+
+bool DipDataAccess::getDipClassSet(QVector<QString>& data) const{
+    std::set<QString> dipSet;
+    foreach(auto dip, m_data){
+        dipSet.insert(dip.type);
+    }
+    if(dipSet.empty()){
+        return false;
+    }
+    for (auto it = dipSet.begin(); it != dipSet.end(); ++it) {
+        data.push_back(*it);
+    }
     return true;
 }

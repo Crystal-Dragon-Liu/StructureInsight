@@ -200,6 +200,9 @@
      </layout>
     </widget>
    </item>
+   <item>
+    <widget class="QWidget" name="rightPropertyPanelWrapper" native="true"/>
+   </item>
   </layout>
  </widget>
  <resources/>

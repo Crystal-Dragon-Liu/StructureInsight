@@ -57,6 +57,13 @@ qt_add_executable(EVStereonet
     rosecontrolpane.h rosecontrolpane.cpp rosecontrolpane.ui
     rosewidget.h rosewidget.cpp
     dipdataaccess.h dipdataaccess.cpp
+    propertygroup.h propertygroup.cpp
+    propertyitem.h propertyitem.cpp
+    intpropertyitem.h intpropertyitem.cpp
+    floatpropertyitem.h floatpropertyitem.cpp
+    multiselectpropertyitem.h multiselectpropertyitem.cpp
+    propertypanel.h propertypanel.cpp
+
 )
 
 # === 添加翻译 ===

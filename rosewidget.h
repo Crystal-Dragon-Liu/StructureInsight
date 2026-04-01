@@ -14,6 +14,9 @@ public:
 
     void setTitle(const QString& title);
 
+public slots:
+    void onSetStrikes(const QVector<int>& strikes);
+
 protected:
     void paintEvent(QPaintEvent* event) override;
 
