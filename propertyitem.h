@@ -11,7 +11,8 @@ public:
         Integer,
         Float,
         MultiSelect,
-        SingleSelect
+        SingleSelect,
+        String
     };
     explicit PropertyItem(const QString& name, PropertyType type, QWidget *parent = nullptr);
     virtual ~PropertyItem();
@@ -25,6 +26,8 @@ public:
 
 signals:
     void valueChanged(const QVariant& value);
+
+    void valueChangedNoArgs();
 
 protected:
     QString m_name;

@@ -1,8 +1,20 @@
 #include "rosewidget.h"
 #include <QPainter>
 #include <QFontMetrics>
+#include "propertygroup.h"
+#include "floatpropertyitem.h"
+
+const QString& PROPERTY_MAX_FREQ = QObject::tr("Max Frequency");
+const QString& PROPERTY_ANGLE_SIZE = QObject::tr("Angle Size");
+const QString& PROPERTY_FREQ_SIZE = QObject::tr("Freq Size");
+
 RoseWidget::RoseWidget(QWidget *parent)
-    : QWidget{parent}, m_maxCount(0), m_title(tr("Rose Diagram")){}
+    : QWidget{parent}, m_maxCount(0), m_title(tr("Rose Diagram")), m_propertyGroup(nullptr){
+
+    // 初始化属性
+    initProperties();
+
+}
 
 RoseWidget::~RoseWidget(){}
 
@@ -11,6 +23,64 @@ void RoseWidget::setStrikes(const QVector<int> &strikes)
 {
     m_strikes = strikes;
     calculateHistogram();
+    update();
+}
+
+void RoseWidget::initProperties(){
+
+    // Rose 相关属性
+    if(m_propertyGroup != nullptr){
+        delete m_propertyGroup;
+        m_propertyGroup = nullptr;
+    }
+    m_propertyGroup = new PropertyGroup(tr("Rose Plot"), this);
+
+    // 刻度最大值
+    FloatPropertyItem* maxFreqItem  = new FloatPropertyItem(PROPERTY_MAX_FREQ, 0, 10000, 20.0, m_propertyGroup);
+    m_propertyGroup->addProperty(maxFreqItem);
+
+    // 角度数值大小
+    FloatPropertyItem* angleValueSize = new FloatPropertyItem(PROPERTY_ANGLE_SIZE, 0, 20, 9, m_propertyGroup);
+    connect(angleValueSize, SIGNAL(valueChangedNoArgs()), this, SLOT(onUpdateSelfPaint()));
+    m_propertyGroup->addProperty(angleValueSize);
+
+    // 频率数值显示尺寸
+    FloatPropertyItem* freqDisplaySizeItem = new FloatPropertyItem(PROPERTY_FREQ_SIZE, 0, 20, 9, m_propertyGroup);
+    m_propertyGroup->addProperty(freqDisplaySizeItem);
+
+}
+
+float RoseWidget::getMaxFreq() const{
+    if(m_propertyGroup){
+        PropertyItem* property = m_propertyGroup->property(PROPERTY_MAX_FREQ);
+        return property->value().toFloat();
+    }
+    else{
+        return 10.0f;
+    }
+}
+
+float RoseWidget::getFreqDisplaySize() const{
+    if(m_propertyGroup){
+        PropertyItem* property = m_propertyGroup->property(PROPERTY_FREQ_SIZE);
+        return property->value().toFloat();
+    }
+    else{
+        return 9.0f;
+    }
+}
+
+float RoseWidget::getAngleValueSize() const{
+    if(m_propertyGroup){
+        PropertyItem* property = m_propertyGroup->property(PROPERTY_ANGLE_SIZE);
+        return property->value().toFloat();
+    }
+    else{
+        return 9.0f;
+    }
+}
+
+void RoseWidget::onUpdateSelfPaint(){
     update();
 }
 
@@ -151,7 +221,9 @@ void RoseWidget::drawLabels(QPainter *painter, const QRect &rect){
     }
 
     // 绘制360度数值标签
-    painter->setFont(QFont("Arial", 8));
+    float angleSize = this->getAngleValueSize();
+    qDebug() << "Using Angle value size: " << angleSize;
+    painter->setFont(QFont("Arial", angleSize));
     for(int angle = 0; angle < 360; angle += 10){
         double rad = qDegreesToRadians(angle);
         int labelX = centerX + (extendRadius) * cos(rad);

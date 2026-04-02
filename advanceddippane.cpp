@@ -17,6 +17,7 @@
 #include "floatpropertyitem.h"
 #include "multiselectpropertyitem.h"
 #include "singleselectpropertyitem.h"
+#include "stringpropertyitem.h"
 AdvancedDipPane::AdvancedDipPane(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::AdvancedDipPane), m_dataInterface(nullptr)
@@ -64,23 +65,26 @@ void AdvancedDipPane::initPropertyPanel(){
     layout->addWidget(m_propertyPanel);
 
     // 通用属性
+    PropertyGroup* generalGroup = new PropertyGroup(tr("Data"), m_propertyPanel);
+    // Apparent Dip字段
+    StringPropertyItem* apparentDipItem = new StringPropertyItem(tr("Apparent Dip"), tr("ApparentDip"), generalGroup);
+    generalGroup->addProperty(apparentDipItem);
 
-    // Stereonet相关属性
-    PropertyGroup* stereonetGroup = new PropertyGroup(tr("Stereonet"), m_propertyPanel);
+    // True Dip 字段
+    StringPropertyItem* trueDipItem = new StringPropertyItem(tr("True Dip"), tr("TrueDip"), generalGroup);
+    generalGroup->addProperty(trueDipItem);
 
-    FloatPropertyItem* initialXRotation  = new FloatPropertyItem(tr("Initial X Rotation"), 0.0, 360.0, 90.0, stereonetGroup);
-    stereonetGroup->addProperty(initialXRotation);
+    // Apparent Azimuth字段
+    StringPropertyItem* apparentAzim = new StringPropertyItem(tr("Apparent Azimuth"), tr("ApparentAzimuth"), generalGroup);
+    generalGroup->addProperty(apparentAzim);
 
-    FloatPropertyItem* initialYRotation  = new FloatPropertyItem(tr("Initial Y Rotation"), 0.0, 360.0, 0.0, stereonetGroup);
-    stereonetGroup->addProperty(initialYRotation);
+    // True Azimuth字段
+    StringPropertyItem* trueAzim = new StringPropertyItem(tr("True Azimuth"), tr("TrueAzimuth"), generalGroup);
+    generalGroup->addProperty(trueAzim);
 
-    SingleSelectPropertyItem* showPlane = new SingleSelectPropertyItem(tr("Show Plane"), {tr("Yes"), tr("No")}, 0, stereonetGroup);
-    stereonetGroup->addProperty(showPlane);
-
-    SingleSelectPropertyItem* projectionType = new SingleSelectPropertyItem(tr("Projection Type"), {tr("Equal-Area"), tr("Equal-Angle")}, 0, stereonetGroup);
-    stereonetGroup->addProperty(projectionType);
-
-    m_propertyPanel->addGroup(stereonetGroup);
+    m_propertyPanel->addGroup(generalGroup);
+    m_propertyPanel->addGroup(m_stereonetWidget->getPropertyGroup());
+    m_propertyPanel->addGroup(m_roseWidget->getPropertyGroup());
 }
 
 AdvancedDipPane::~AdvancedDipPane()

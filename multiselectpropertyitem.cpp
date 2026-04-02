@@ -9,8 +9,8 @@ MultiSelectPropertyItem::MultiSelectPropertyItem(const QString& name, const QStr
 {
     // 移除原有的水平布局
     delete this->layout();
-
     QVBoxLayout* layout = new QVBoxLayout(this);
+    this->setLayout(layout);
     layout->setContentsMargins(5, 2, 5, 2);
 
     QLabel* nameLabel = new QLabel(name + ":", this);

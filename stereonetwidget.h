@@ -4,6 +4,7 @@
 #include <QWidget>
 #include <QVector>
 #include "stereonet.h"
+class PropertyGroup;
 
 class StereonetWidget : public QWidget
 {
@@ -16,6 +17,8 @@ public:
     void addPlane(const Plane& plane);
     void clearPlanes();
 
+    PropertyGroup* getPropertyGroup() { return m_propertyGroup; }
+
 protected:
     void paintEvent(QPaintEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
@@ -25,6 +28,8 @@ protected:
     void mouseMoveEvent(QMouseEvent *event) override;
 
 private:
+    /*@brief 初始化属性*/
+    void initProperties();
     void computeGrid();
     QPointF mapToWidget(const QPointF& point) const;
     double widgetToStereonet(double value) const;
@@ -43,6 +48,9 @@ private:
     QVector<QVector<QPointF>> m_originalGreatCircles; // 保存原始大圆（避免旋转污染）
     QVector<QVector<QPointF>> m_originalSmallCircles; // 保存原始小圆（避免旋转污染）
     QVector<Line> m_originalGreatCirclePoles; // 保存生成每个大圆的原始极点
+private:
+    // 属性组
+    PropertyGroup* m_propertyGroup;
 };
 
 #endif // STEREONETWIDGET_H

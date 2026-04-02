@@ -3,6 +3,8 @@
 
 #include <QWidget>
 
+class PropertyGroup;
+
 class RoseWidget : public QWidget
 {
     Q_OBJECT
@@ -14,8 +16,18 @@ public:
 
     void setTitle(const QString& title);
 
+    PropertyGroup* getPropertyGroup() { return m_propertyGroup; }
+
+    // 获取属性值
+    float getMaxFreq() const;
+    float getFreqDisplaySize() const;
+    float getAngleValueSize() const;
+
+
 public slots:
     void onSetStrikes(const QVector<int>& strikes);
+
+    void onUpdateSelfPaint();
 
 protected:
     void paintEvent(QPaintEvent* event) override;
@@ -27,6 +39,9 @@ private:
     int m_maxCount;
 
 private:
+
+    void initProperties();
+
     void calculateHistogram();
 
     /*
@@ -42,7 +57,10 @@ private:
      * @brief 绘制网格旁边的label
      */
     void drawLabels(QPainter *painter, const QRect &rect);
-signals:
+
+private:
+    // 属性组
+    PropertyGroup* m_propertyGroup;
 };
 
 #endif // ROSEWIDGET_H

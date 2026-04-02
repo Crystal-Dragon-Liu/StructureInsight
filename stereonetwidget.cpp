@@ -6,6 +6,9 @@
 #include <QMouseEvent>
 #include <QLineF>
 #include <QtMath>
+#include "propertygroup.h"
+#include "floatpropertyitem.h"
+#include "singleselectpropertyitem.h"
 
 StereonetWidget::StereonetWidget(QWidget *parent)
     : QWidget(parent),
@@ -13,6 +16,7 @@ StereonetWidget::StereonetWidget(QWidget *parent)
     m_rotX(0.0),
     m_rotY(0.0)
 {
+    initProperties();
     // 设置大小策略为可扩展，这样会填充整个可用空间
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     
@@ -279,4 +283,29 @@ void StereonetWidget::mouseMoveEvent(QMouseEvent *event)
         m_lastMousePos = event->pos();
         update();
     }
+}
+
+void StereonetWidget::initProperties(){
+
+    // Rose 相关属性
+    if(m_propertyGroup != nullptr){
+        delete m_propertyGroup;
+        m_propertyGroup = nullptr;
+    }
+    m_propertyGroup = new PropertyGroup(tr("Stereonet"), this);
+
+    // Stereonet相关属性
+    // 初始南北偏移角度
+    FloatPropertyItem* initialXRotation  = new FloatPropertyItem(tr("Initial X Rotation"), 0.0, 360.0, 90.0, m_propertyGroup);
+    m_propertyGroup->addProperty(initialXRotation);
+    // 初始东西偏移角度
+    FloatPropertyItem* initialYRotation  = new FloatPropertyItem(tr("Initial Y Rotation"), 0.0, 360.0, 0.0, m_propertyGroup);
+    m_propertyGroup->addProperty(initialYRotation);
+    // 是否显示平面
+    SingleSelectPropertyItem* showPlane = new SingleSelectPropertyItem(tr("Show Plane"), {tr("Yes"), tr("No")}, 0, m_propertyGroup);
+    m_propertyGroup->addProperty(showPlane);
+    // Stereonet的投影类型
+    SingleSelectPropertyItem* projectionType = new SingleSelectPropertyItem(tr("Projection Type"), {tr("Equal-Area"), tr("Equal-Angle")}, 0, m_propertyGroup);
+    m_propertyGroup->addProperty(projectionType);
+
 }

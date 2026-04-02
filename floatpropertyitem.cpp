@@ -21,6 +21,8 @@ FloatPropertyItem::FloatPropertyItem(const QString& name, double min, double max
     connect(m_spinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, [this](double value) {
                 emit valueChanged(value);
+        qDebug() << "Float property Changed: " << value;
+                emit valueChangedNoArgs();
             });
 }
 
