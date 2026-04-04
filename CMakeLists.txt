@@ -65,6 +65,7 @@ qt_add_executable(EVStereonet
     propertypanel.h propertypanel.cpp
     singleselectpropertyitem.h singleselectpropertyitem.cpp
     stringpropertyitem.h stringpropertyitem.cpp
+    dipwidgetbase.h dipwidgetbase.cpp
 
 )
 

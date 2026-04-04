@@ -14,7 +14,6 @@
 #include "propertypanel.h"
 #include "propertygroup.h"
 // #include "intpropertyitem.h"
-#include "floatpropertyitem.h"
 #include "multiselectpropertyitem.h"
 #include "singleselectpropertyitem.h"
 #include "stringpropertyitem.h"
@@ -100,7 +99,7 @@ void AdvancedDipPane::setupStereonetWrapper()
     // 移除固定的最小尺寸限制，让其能够根据窗口大小自由调整
     m_stereonetWidget->setMinimumSize(200, 200); // 设置一个更小的最小尺寸
     m_stereonetWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    
+    m_stereonetWidget->initProperties();
     // 添加到 stereonetWrapper 的布局中
     QVBoxLayout *stereonetLayout = qobject_cast<QVBoxLayout*>(ui->stereonetWrapper->layout());
     if (stereonetLayout) {
@@ -113,6 +112,7 @@ void AdvancedDipPane::setupRoseWrapper()
     m_roseWidget = new RoseWidget(ui->roseWrapper);
     m_roseWidget->setMinimumSize(200, 200); // 设置一个更小的最小尺寸
     m_roseWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    m_roseWidget->initProperties();
     // 为 roseWrapper 添加一个占位标签（后续可以替换为 RosePlotWidget）
     QVBoxLayout *roseLayout = qobject_cast<QVBoxLayout*>(ui->roseWrapper->layout());
     if (roseLayout) {

@@ -4,9 +4,10 @@
 #include <QWidget>
 #include <QVector>
 #include "stereonet.h"
+#include "dipwidgetbase.h"
 class PropertyGroup;
 
-class StereonetWidget : public QWidget
+class StereonetWidget : public DipWidgetBase
 {
     Q_OBJECT
 
@@ -16,7 +17,8 @@ public:
     void setProjectionType(StereonetType type);
     void addPlane(const Plane& plane);
     void clearPlanes();
-
+    /*@brief 初始化属性*/
+    void initProperties() override;
     PropertyGroup* getPropertyGroup() { return m_propertyGroup; }
 
 protected:
@@ -28,8 +30,7 @@ protected:
     void mouseMoveEvent(QMouseEvent *event) override;
 
 private:
-    /*@brief 初始化属性*/
-    void initProperties();
+
     void computeGrid();
     QPointF mapToWidget(const QPointF& point) const;
     double widgetToStereonet(double value) const;
@@ -48,9 +49,6 @@ private:
     QVector<QVector<QPointF>> m_originalGreatCircles; // 保存原始大圆（避免旋转污染）
     QVector<QVector<QPointF>> m_originalSmallCircles; // 保存原始小圆（避免旋转污染）
     QVector<Line> m_originalGreatCirclePoles; // 保存生成每个大圆的原始极点
-private:
-    // 属性组
-    PropertyGroup* m_propertyGroup;
 };
 
 #endif // STEREONETWIDGET_H

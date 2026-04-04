@@ -1,11 +1,12 @@
 #ifndef ROSEWIDGET_H
 #define ROSEWIDGET_H
 
-#include <QWidget>
+// #include <QWidget>
+#include "dipwidgetbase.h"
 
 class PropertyGroup;
 
-class RoseWidget : public QWidget
+class RoseWidget : public DipWidgetBase
 {
     Q_OBJECT
 public:
@@ -23,11 +24,12 @@ public:
     float getFreqDisplaySize() const;
     float getAngleValueSize() const;
 
+    // 初始化属性
+    void initProperties() override;
+
 
 public slots:
     void onSetStrikes(const QVector<int>& strikes);
-
-    void onUpdateSelfPaint();
 
 protected:
     void paintEvent(QPaintEvent* event) override;
@@ -38,9 +40,9 @@ private:
     QString m_title;
     int m_maxCount;
 
+
 private:
 
-    void initProperties();
 
     void calculateHistogram();
 
@@ -58,9 +60,8 @@ private:
      */
     void drawLabels(QPainter *painter, const QRect &rect);
 
-private:
-    // 属性组
-    PropertyGroup* m_propertyGroup;
+    /*@brief 绘制信息*/
+    // void drawInfo(QPainter* painter, const QRect& rect);
 };
 
 #endif // ROSEWIDGET_H

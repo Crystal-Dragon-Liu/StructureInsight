@@ -9,14 +9,15 @@
 #include "propertygroup.h"
 #include "floatpropertyitem.h"
 #include "singleselectpropertyitem.h"
+const QString& STEREONET_WIDGET_NAME = QObject::tr("Stereonet");
+
 
 StereonetWidget::StereonetWidget(QWidget *parent)
-    : QWidget(parent),
+    : DipWidgetBase(parent, STEREONET_WIDGET_NAME),
     m_projectionType(StereonetType::EqualArea),
     m_rotX(0.0),
     m_rotY(0.0)
 {
-    initProperties();
     // 设置大小策略为可扩展，这样会填充整个可用空间
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     
@@ -55,6 +56,7 @@ void StereonetWidget::paintEvent(QPaintEvent *event)
     painter.setRenderHint(QPainter::Antialiasing, true);
 
     QPoint center = rect().center();
+    painter.drawRect(rect());
 
     // 绘制参考圆
     painter.setPen(QPen(Qt::black, 1));
@@ -197,10 +199,9 @@ void StereonetWidget::paintEvent(QPaintEvent *event)
 
     // 方向标记
     painter.setPen(QPen(Qt::black, 1));
-    painter.drawText(mapToWidget(QPointF(0, 1)) + QPointF(0, -10), "N");
-    painter.drawText(mapToWidget(QPointF(1, 0)) + QPointF(10, 0), "E");
-    painter.drawText(mapToWidget(QPointF(0, -1)) + QPointF(0, 10), "S");
-    painter.drawText(mapToWidget(QPointF(-1, 0)) + QPointF(-10, 0), "W");
+
+
+    drawInfo(&painter, rect());
 }
 
 void StereonetWidget::resizeEvent(QResizeEvent *event)
@@ -286,13 +287,12 @@ void StereonetWidget::mouseMoveEvent(QMouseEvent *event)
 }
 
 void StereonetWidget::initProperties(){
+    DipWidgetBase::initProperties();
 
-    // Rose 相关属性
-    if(m_propertyGroup != nullptr){
-        delete m_propertyGroup;
-        m_propertyGroup = nullptr;
+    // Stereonet 相关属性
+    if(!m_propertyGroup){
+        m_propertyGroup = new PropertyGroup(STEREONET_WIDGET_NAME, this);
     }
-    m_propertyGroup = new PropertyGroup(tr("Stereonet"), this);
 
     // Stereonet相关属性
     // 初始南北偏移角度

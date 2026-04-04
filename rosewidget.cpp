@@ -7,13 +7,12 @@
 const QString& PROPERTY_MAX_FREQ = QObject::tr("Max Frequency");
 const QString& PROPERTY_ANGLE_SIZE = QObject::tr("Angle Size");
 const QString& PROPERTY_FREQ_SIZE = QObject::tr("Freq Size");
+const QString& ROSE_WIDGET_NAME = QObject::tr("Rose Diagram");
+
+#define PIE_PADDING_RATIO 0.05f
 
 RoseWidget::RoseWidget(QWidget *parent)
-    : QWidget{parent}, m_maxCount(0), m_title(tr("Rose Diagram")), m_propertyGroup(nullptr){
-
-    // 初始化属性
-    initProperties();
-
+    : DipWidgetBase{parent, ROSE_WIDGET_NAME}, m_maxCount(0), m_title(ROSE_WIDGET_NAME){
 }
 
 RoseWidget::~RoseWidget(){}
@@ -22,18 +21,17 @@ RoseWidget::~RoseWidget(){}
 void RoseWidget::setStrikes(const QVector<int> &strikes)
 {
     m_strikes = strikes;
+    m_dataNum = strikes.size();
     calculateHistogram();
     update();
 }
 
 void RoseWidget::initProperties(){
-
+    DipWidgetBase::initProperties();
     // Rose 相关属性
-    if(m_propertyGroup != nullptr){
-        delete m_propertyGroup;
-        m_propertyGroup = nullptr;
+    if(!m_propertyGroup){
+        m_propertyGroup = new PropertyGroup(ROSE_WIDGET_NAME, this);
     }
-    m_propertyGroup = new PropertyGroup(tr("Rose Plot"), this);
 
     // 刻度最大值
     FloatPropertyItem* maxFreqItem  = new FloatPropertyItem(PROPERTY_MAX_FREQ, 0, 10000, 20.0, m_propertyGroup);
@@ -80,12 +78,10 @@ float RoseWidget::getAngleValueSize() const{
     }
 }
 
-void RoseWidget::onUpdateSelfPaint(){
-    update();
-}
-
 void RoseWidget::onSetStrikes(const QVector<int>& strikes){
     setStrikes(strikes);
+    // 设置数据长度
+    setDataNum(strikes.size());
 }
 
 void RoseWidget::setTitle(const QString &title)
@@ -95,6 +91,7 @@ void RoseWidget::setTitle(const QString &title)
 }
 
 void RoseWidget::drawRoseDiagram(QPainter *painter, const QRect &rect){
+    painter->save();
     int centerX = rect.center().x();
     int centerY = rect.center().y();
     int radius = qMin(rect.width(), rect.height()) / 2;
@@ -103,7 +100,7 @@ void RoseWidget::drawRoseDiagram(QPainter *painter, const QRect &rect){
     painter->setBrush(QBrush(QColor(200, 200, 200)));
 
     // 预留一些空间，与matplotlib的效果类似
-    double padding = 0.05; // 5%的额外空间
+    double padding = PIE_PADDING_RATIO; // 5%的额外空间
     int effectiveRadius = radius * (1 - padding);
 
     // 绘制玫瑰图的每个扇区
@@ -121,16 +118,18 @@ void RoseWidget::drawRoseDiagram(QPainter *painter, const QRect &rect){
                          -startAngle * 180 / M_PI * 16,
                          -(endAngle - startAngle) * 180 / M_PI * 16);
     }
-
+    painter->restore();
 }
 
 void RoseWidget::drawGrid(QPainter *painter, const QRect &rect){
+    painter->save();
     int centerX = rect.center().x();
     int centerY = rect.center().y();
     int radius = qMin(rect.width(), rect.height()) / 2;
+    qDebug() << rect.width() << ", " << rect.height();
 
     // 在最外面向外扩展一点空间，与matplotlib的效果类似
-    double padding = 0.05; // 5%的额外空间
+    double padding = PIE_PADDING_RATIO; // 5%的额外空间
     int extendedRadius = radius * (1 + padding);
 
     painter->setPen(QPen(Qt::lightGray, 1));
@@ -174,27 +173,16 @@ void RoseWidget::drawGrid(QPainter *painter, const QRect &rect){
         double y1 = centerY + extendedRadius * sin(rad);
         painter->drawLine(centerX, centerY, x1, y1);
     }
+    painter->restore();
 }
 
 void RoseWidget::drawLabels(QPainter *painter, const QRect &rect){
+    painter->save();
     int centerX = rect.center().x();
     int centerY = rect.center().y();
     int radius = qMin(rect.width(), rect.height()) / 2;
     painter->setPen(QPen(Qt::black, 1));
     painter->setFont(QFont("Arial", 10));
-
-    // // 绘制方向标签
-    // QString directions[] = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"};
-    // for (int i = 0; i < 8; i++) {
-    //     double angle = i * 45 * M_PI / 180;
-    //     int labelX = centerX + (radius + 20) * cos(angle - M_PI / 2);
-    //     int labelY = centerY + (radius + 20) * sin(angle - M_PI / 2);
-
-    //     QFontMetrics metrics(painter->font());
-    //     int textWidth = metrics.horizontalAdvance(directions[i]);
-    //     int textHeight = metrics.height();
-    //     painter->drawText(labelX - textWidth / 2, labelY + textHeight / 4, directions[i]);
-    // }
 
     double padding = 0.1;
     int extendRadius = radius * (1+padding);
@@ -234,6 +222,7 @@ void RoseWidget::drawLabels(QPainter *painter, const QRect &rect){
         int textHeight = metrics.height();
         painter->drawText(labelX - textWidth / 2, labelY + textHeight / 4, angleText);
     }
+    painter->restore();
 }
 
 void RoseWidget::paintEvent(QPaintEvent *event)
@@ -244,12 +233,14 @@ void RoseWidget::paintEvent(QPaintEvent *event)
     painter.setRenderHint(QPainter::Antialiasing, true);
 
     QRect rect = this->rect();
-    int margin = 50;
+    int margin = 100;
+    QRect diagramRectBoundingRect = rect.adjusted(margin / 2, margin / 2, -margin / 2, -margin / 2);
     QRect diagramRect = rect.adjusted(margin, margin, -margin, -margin);
 
-    // 绘制标题
-    painter.setFont(QFont("Arial", 14, QFont::Bold));
-    painter.drawText(rect.center().x(), margin / 2, m_title);
+    // 绘制边框
+    painter.drawRect(diagramRect);
+    painter.drawRect(diagramRectBoundingRect);
+    painter.drawRect(rect);
 
     if (m_strikes.isEmpty()) {
         painter.drawText(diagramRect.center(), "No data");
@@ -259,6 +250,7 @@ void RoseWidget::paintEvent(QPaintEvent *event)
     drawGrid(&painter, diagramRect);
     drawRoseDiagram(&painter, diagramRect);
     drawLabels(&painter, diagramRect);
+    drawInfo(&painter, rect);
 }
 
 
