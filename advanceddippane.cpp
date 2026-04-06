@@ -51,7 +51,7 @@ AdvancedDipPane::AdvancedDipPane(QWidget *parent)
             this, &AdvancedDipPane::onDataBrowserBtnClicked);
     connect(ui->listWidget, &QListWidget::itemClicked,
             this, &AdvancedDipPane::onListWidgetItemClicked);
-    m_dataInterface = new DipDataAccess();
+    m_dataInterface = new DipDataAccess(this);
     // 构建属性面板
     initPropertyPanel();
 }

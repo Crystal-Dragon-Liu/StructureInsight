@@ -8,14 +8,17 @@ struct DipData{
     float depth;
     float strike;
     QString type;
-    float dip;
+    float appDip;
+    float appAzi;
+    float trueDip;
+    float trueAzi;
 };
 
 class DipDataAccess: public QObject
 {
     Q_OBJECT
 public:
-    DipDataAccess();
+    DipDataAccess(QObject* parent = nullptr);
 
     /*
      * @brief Fetch dip data.

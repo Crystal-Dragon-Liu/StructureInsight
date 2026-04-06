@@ -2,7 +2,19 @@
 #include <QFile>
 #include <QTextStream>
 #include <set>
-DipDataAccess::DipDataAccess() {}
+
+// 可能的数据项名称，临时用
+
+const QStringList& DEPTH_NAME_LIST = {"DEPTH", "DEPT"};
+const QStringList& APP_DIP_NAME_LIST = {"DIP", "APPDIP"};
+const QStringList& TRUE_DIP_NAME_LIST = {"DIP_TRUE", "TRUE_DIP", "TRDIP"};
+const QStringList& APP_AZI_NAME_LIST = {"APP_AZI", "AZIMUTH_NP"};
+const QStringList& TRUE_AZI_NAME_LIST = {"AZIMUTH_TRUE"};
+const QStringList& HAZI_NAME_LIST = {"HAZI"};
+const QStringList& DEVI_NAME_LIST = {"DEVI"};
+const QStringList& TYPE_NAME_LIST = {"TYPE"};
+
+DipDataAccess::DipDataAccess(QObject* parent): QObject(parent) {}
 
 bool DipDataAccess::fetchDataFromFile(const QString& dipFilePath){
 
@@ -25,36 +37,21 @@ bool DipDataAccess::fetchDataFromFile(const QString& dipFilePath){
         file.close();
         return false;
     }
-    int depthIdx = -1;
-    int dipIdx = -1;
-    int strikeIdx = -1;
-    int typeIdx = -1;
+    // 索引列表 - Depth -> [0], Apparent Dip -> [1], Apparent Azimuth -> [2], True Dip -> [3], True Azimuth -> [4], Type -> [5]
+    std::vector<int> itemIdxVec = {-1, -1, -1, -1, -1, -1};
     for(int i = 0; i < headerParts.size(); i++){
-        if(headerParts[i] == "DEPTH"){
-            depthIdx = i;
-        }
-        else if(headerParts[i] == "DIP"){
-            dipIdx = i;
-        }
-        else if(headerParts[i] == "STRIKE"){
-            strikeIdx = i;
-        }
-        else if(headerParts[i] == "TYPE"){
-            typeIdx = i;
-        }
-    }
-
-    if(depthIdx < 0 || dipIdx < 0 || strikeIdx < 0 || typeIdx < 0){
-        file.close();
-        return false;
+        if(DEPTH_NAME_LIST.contains(headerParts[i], Qt::CaseInsensitive))           { itemIdxVec[0] = i;}
+        else if(APP_DIP_NAME_LIST.contains(headerParts[i], Qt::CaseInsensitive))    { itemIdxVec[1] = i;}
+        else if(APP_AZI_NAME_LIST.contains(headerParts[i], Qt::CaseInsensitive))    { itemIdxVec[2] = i;}
+        else if(TRUE_DIP_NAME_LIST.contains(headerParts[i], Qt::CaseInsensitive))   { itemIdxVec[3] = i;}
+        else if(TRUE_AZI_NAME_LIST.contains(headerParts[i], Qt::CaseInsensitive))   { itemIdxVec[4] = i;}
+        else if(TYPE_NAME_LIST.contains(headerParts[i], Qt::CaseInsensitive))       { itemIdxVec[5] = i;}
     }
 
     while (!in.atEnd()){
         // 读取一行
         QString line = in.readLine().trimmed();
-        if(line.isEmpty()){
-            continue;
-        }
+        if(line.isEmpty()){ continue; }
         // 按逗号分割成单元格
         QStringList cells = line.split(',');
         if(cells.size() != 4){
@@ -64,19 +61,36 @@ bool DipDataAccess::fetchDataFromFile(const QString& dipFilePath){
 
         DipData data;
         bool ok;
-        data.depth = cells[depthIdx].toFloat(&ok);
-        if(!ok){
+        // 获取深度
+        data.depth = cells[0].toFloat(&ok);
+        if(!ok){ continue;}
+        // 获取视倾角
+        data.appDip = cells[1].toFloat(&ok);
+        if(!ok || data.appDip < 0.f || data.appDip > 90.0f){
             continue;
         }
-        data.dip = cells[dipIdx].toFloat(&ok);
-        if(!ok || data.dip < 0 || data.dip > 90.0){
+        // 获取视倾向
+        data.appAzi = cells[2].toFloat(&ok);
+        if(!ok || data.appAzi < 0.f || data.appAzi > 360.f){
             continue;
         }
-        data.strike = cells[strikeIdx].toFloat(&ok);
-        if(!ok || data.strike < 0 || data.strike > 360){
+        // 获取真倾角
+        data.trueDip = cells[3].toFloat(&ok);
+        if(!ok || data.trueDip < 0.f || data.trueDip > 90.0f){
             continue;
         }
-        data.type = cells[typeIdx];
+        data.trueAzi = cells[4].toFloat(&ok);
+        if(!ok || data.trueAzi < 0.f || data.trueAzi > 360.0f){
+            continue;
+        }
+        if(ok){
+            // 默认走向使用真倾向进行计算
+            data.strike = data.trueAzi - 90.f;
+            if(data.strike < 0.f){
+                data.strike += 360.0f;
+            }
+        }
+        data.type = cells[5];
         m_data.push_back(data);
     }
     file.close();
