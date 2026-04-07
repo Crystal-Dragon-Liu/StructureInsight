@@ -3,11 +3,17 @@
 #include <QFontMetrics>
 #include "propertygroup.h"
 #include "floatpropertyitem.h"
+#include "singleselectpropertyitem.h"
 
-const QString& PROPERTY_MAX_FREQ = QObject::tr("Max Frequency");
-const QString& PROPERTY_ANGLE_SIZE = QObject::tr("Angle Size");
-const QString& PROPERTY_FREQ_SIZE = QObject::tr("Freq Size");
-const QString& ROSE_WIDGET_NAME = QObject::tr("Rose Diagram");
+const QString& PROPERTY_MAX_FREQ        = QObject::tr("Max Frequency");
+const QString& PROPERTY_ANGLE_SIZE      = QObject::tr("Angle Size");
+const QString& PROPERTY_FREQ_SIZE       = QObject::tr("Freq Size");
+const QString& ROSE_WIDGET_NAME         = QObject::tr("Rose Diagram");
+const QString& PROPERTY_SHOW_AZI_TYPE   = QObject::tr("Azimuth Type");
+
+const QString& APPARENT_AZIMUTH_NAME    = QObject::tr("Apparent Azimuth");
+const QString& TRUE_AZIMUTH_NAME        = QObject::tr("True Azimuth");
+const QString& STRIKE_NAME              = QObject::tr("Strikes");
 
 #define PIE_PADDING_RATIO 0.05f
 
@@ -17,6 +23,16 @@ RoseWidget::RoseWidget(QWidget *parent)
 
 RoseWidget::~RoseWidget(){}
 
+void RoseWidget::setData(DipDataAccess& data){
+    m_buffer.clear();
+    QVector<QString> typeList;
+    data.getDipClassSet(typeList);
+    for(int i = 0; i < typeList.size(); i++){
+        AzimuthStatistic statistic;
+        data.getDataByType(typeList[i], statistic.dips);
+        m_buffer.insert(typeList[i], statistic);
+    }
+}
 
 void RoseWidget::setStrikes(const QVector<int> &strikes)
 {
@@ -32,6 +48,14 @@ void RoseWidget::initProperties(){
     if(!m_propertyGroup){
         m_propertyGroup = new PropertyGroup(ROSE_WIDGET_NAME, this);
     }
+
+    // 使用的方位数据类型
+    SingleSelectPropertyItem* showDataTypeItem = new SingleSelectPropertyItem(
+        PROPERTY_SHOW_AZI_TYPE,
+        {APPARENT_AZIMUTH_NAME, TRUE_AZIMUTH_NAME, STRIKE_NAME}
+    );
+    connect(showDataTypeItem, SIGNAL(valueChangedNoArgs()), this, SLOT(onUpdateSelfPaint()));
+    m_propertyGroup->addProperty(showDataTypeItem);
 
     // 刻度最大值
     FloatPropertyItem* maxFreqItem  = new FloatPropertyItem(PROPERTY_MAX_FREQ, 0, 10000, 20.0, m_propertyGroup);
@@ -66,6 +90,26 @@ float RoseWidget::getFreqDisplaySize() const{
     else{
         return 9.0f;
     }
+}
+
+DipDataType RoseWidget::getDipDataType() const{
+    if(m_propertyGroup){
+        PropertyItem* property = m_propertyGroup->property(PROPERTY_SHOW_AZI_TYPE);
+        QString type = property->value().toString();
+        if(type.compare(APPARENT_AZIMUTH_NAME) == 0){
+            return DipDataType::APP_AZI;
+        }
+        else if(type.compare(TRUE_AZIMUTH_NAME) == 0){
+            return DipDataType::TRUE_AZI;
+        }
+        else if(type.compare(STRIKE_NAME) == 0){
+            return DipDataType::STRIKE;
+        }
+        else{
+            return DipDataType::INVALID;
+        }
+    }
+    return DipDataType::INVALID;
 }
 
 float RoseWidget::getAngleValueSize() const{
@@ -104,20 +148,37 @@ void RoseWidget::drawRoseDiagram(QPainter *painter, const QRect &rect){
     int effectiveRadius = radius * (1 - padding);
 
     // 绘制玫瑰图的每个扇区
-    for (int i = 0; i < 36; i++) {
-        double startAngle = (i * 10) * M_PI / 180;
-        double endAngle = ((i + 1) * 10) * M_PI / 180;
+    auto iter = m_buffer.begin();
+    while(iter != m_buffer.end()){
+        for (int i = 0; i < 36; i++) {
+            double startAngle = (i * 10) * M_PI / 180;
+            double endAngle = ((i + 1) * 10) * M_PI / 180;
 
-        // 计算扇区的半径比例
-        double radiusRatio = m_maxCount > 0 ? (double)m_histogram[i] / m_maxCount : 0;
-        int sectorRadius = effectiveRadius * radiusRatio;
+            // 计算扇区的半径比例
+            double radiusRatio = m_maxCount > 0 ? (double)m_buffer[iter.key()].hist[i] / m_maxCount : 0;
+            int sectorRadius = effectiveRadius * radiusRatio;
 
-        // 绘制扇区
-        painter->drawPie(centerX - sectorRadius, centerY - sectorRadius,
-                         2 * sectorRadius, 2 * sectorRadius,
-                         -startAngle * 180 / M_PI * 16,
-                         -(endAngle - startAngle) * 180 / M_PI * 16);
+            // 绘制扇区
+            painter->drawPie(centerX - sectorRadius, centerY - sectorRadius,
+                             2 * sectorRadius, 2 * sectorRadius,
+                             -startAngle * 180 / M_PI * 16,
+                             -(endAngle - startAngle) * 180 / M_PI * 16);
+        }
     }
+    // for (int i = 0; i < 36; i++) {
+    //     double startAngle = (i * 10) * M_PI / 180;
+    //     double endAngle = ((i + 1) * 10) * M_PI / 180;
+
+    //     // 计算扇区的半径比例
+    //     double radiusRatio = m_maxCount > 0 ? (double)m_histogram[i] / m_maxCount : 0;
+    //     int sectorRadius = effectiveRadius * radiusRatio;
+
+    //     // 绘制扇区
+    //     painter->drawPie(centerX - sectorRadius, centerY - sectorRadius,
+    //                      2 * sectorRadius, 2 * sectorRadius,
+    //                      -startAngle * 180 / M_PI * 16,
+    //                      -(endAngle - startAngle) * 180 / M_PI * 16);
+    // }
     painter->restore();
 }
 
@@ -242,7 +303,7 @@ void RoseWidget::paintEvent(QPaintEvent *event)
     painter.drawRect(diagramRectBoundingRect);
     painter.drawRect(rect);
 
-    if (m_strikes.isEmpty()) {
+    if(m_buffer.size() == 0){
         painter.drawText(diagramRect.center(), "No data");
         return;
     }
@@ -253,30 +314,36 @@ void RoseWidget::paintEvent(QPaintEvent *event)
     drawInfo(&painter, rect);
 }
 
-
-void RoseWidget::calculateHistogram()
-{
+void RoseWidget::calculateHistogram(AzimuthStatistic& dips, const DipDataType & dataType){
     // 初始化直方图数组，36个区间，每个10度
-    m_histogram.resize(36, 0);
-    std::fill(this->m_histogram.begin(), this->m_histogram.end(), 0);
+    dips.hist.resize(36, 0);
+    std::fill(dips.hist.begin(), dips.hist.end(), 0);
     m_maxCount = 0;
-
     // 统计每个区间的数量
-    for (int strike : m_strikes) {
-        int index = strike / 10;
-        if (index >= 36) {
-            index = 0; // 0度和360度视为同一区间
+    for (DipData dipBuffer : dips.dips) {
+        float data = -1;
+        // 决定使用哪个数据, APP_AZI/TRUE_AZI/STRIKE
+        switch (dataType) {
+            case DipDataType::STRIKE:   { data = dipBuffer.strike; break; }
+            case DipDataType::APP_AZI:  { data = dipBuffer.appAzi; break; }
+            case DipDataType::TRUE_AZI: { data = dipBuffer.trueAzi;break; }
+            default: {break;}
         }
-        m_histogram[index]++;
-        if (m_histogram[index] > m_maxCount) {
-            m_maxCount = m_histogram[index];
+        if(data < 0){ continue;}
+
+        int index = data / 10;
+        if (index >= 36) { index = 0;} // 0度和360度视为同一区间
+
+        dips.hist[index]++;
+        if (dips.hist[index] > m_maxCount) {
+            m_maxCount = dips.hist[index];
         }
     }
 
     // 处理0度和180度对称的情况
     QVector<int> half(18, 0);
     for (int i = 0; i < 18; i++) {
-        half[i] = m_histogram[i] + m_histogram[i + 18];
+        half[i] = dips.hist[i] + dips.hist[i + 18];
         if (half[i] > m_maxCount) {
             m_maxCount = half[i];
         }
@@ -284,7 +351,17 @@ void RoseWidget::calculateHistogram()
 
     // 复制到完整的36个区间
     for (int i = 0; i < 18; i++) {
-        m_histogram[i] = half[i];
-        m_histogram[i + 18] = half[i];
+        dips.hist[i] = half[i];
+        dips.hist[i + 18] = half[i];
+    }
+}
+
+
+void RoseWidget::calculateHistogram(){
+
+    DipDataType showType = getDipDataType();
+    auto iter = m_buffer.begin();
+    while(iter != m_buffer.end()){
+        calculateHistogram(iter.value(), showType);
     }
 }

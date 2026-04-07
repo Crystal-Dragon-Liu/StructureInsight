@@ -3,6 +3,9 @@
 
 // #include <QWidget>
 #include "dipwidgetbase.h"
+#include "dipdataaccess.h"
+
+
 
 class PropertyGroup;
 
@@ -10,8 +13,16 @@ class RoseWidget : public DipWidgetBase
 {
     Q_OBJECT
 public:
+
+    struct AzimuthStatistic{
+        QList<DipData> dips;
+        QVector<float> hist;
+    };
+
     explicit RoseWidget(QWidget *parent = nullptr);
     ~RoseWidget();
+
+    void setData(DipDataAccess& data);
 
     void setStrikes(const QVector<int> &strikes);
 
@@ -23,6 +34,7 @@ public:
     float getMaxFreq() const;
     float getFreqDisplaySize() const;
     float getAngleValueSize() const;
+    DipDataType getDipDataType() const;
 
     // 初始化属性
     void initProperties() override;
@@ -40,9 +52,13 @@ private:
     QString m_title;
     int m_maxCount;
 
+    // 分组记录不同类型的histogram
+    QMap<QString, AzimuthStatistic> m_buffer;
+
 
 private:
 
+    void calculateHistogram(AzimuthStatistic& dips, const DipDataType & dataType);
 
     void calculateHistogram();
 

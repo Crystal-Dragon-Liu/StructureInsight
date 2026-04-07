@@ -14,6 +14,15 @@ struct DipData{
     float trueAzi;
 };
 
+enum class DipDataType{
+    APP_DIP,
+    APP_AZI,
+    TRUE_DIP,
+    TRUE_AZI,
+    STRIKE,
+    INVALID
+};
+
 class DipDataAccess: public QObject
 {
     Q_OBJECT
