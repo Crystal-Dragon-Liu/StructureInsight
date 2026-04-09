@@ -18,6 +18,8 @@ StringPropertyItem::StringPropertyItem(const QString& name, const QString& defau
     connect(m_text, &QLineEdit::textChanged,
             this, [this](const QString& text) {
                 emit valueChanged(text);
+                emit valueChangedNoArgs();
+                emit valueChangedWithName(m_name, text);
             });
 }
 

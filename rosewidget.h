@@ -35,6 +35,7 @@ public:
     float getFreqDisplaySize() const;
     float getAngleValueSize() const;
     DipDataType getDipDataType() const;
+    bool  isShowTypeLabel() const;
 
     // 初始化属性
     void initProperties() override;
@@ -61,6 +62,9 @@ private:
     void calculateHistogram(AzimuthStatistic& dips, const DipDataType & dataType);
 
     void calculateHistogram();
+
+    /*@brief 计算绘制Label需要的rect大小*/
+    QRect calculateLabelRegion(const QRect& totalRegion);
 
     /*
      * @brief 绘制Rose图

@@ -23,6 +23,8 @@ FloatPropertyItem::FloatPropertyItem(const QString& name, double min, double max
                 emit valueChanged(value);
         qDebug() << "Float property Changed: " << value;
                 emit valueChangedNoArgs();
+                emit valueChangedWithName(m_name, value);
+
             });
 }
 

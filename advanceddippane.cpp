@@ -12,14 +12,21 @@
 #include "dipdataaccess.h"
 #include <QListWidgetItem>
 #include "propertypanel.h"
-#include "propertygroup.h"
 // #include "intpropertyitem.h"
 #include "multiselectpropertyitem.h"
 #include "singleselectpropertyitem.h"
 #include "stringpropertyitem.h"
+
+const QString& PROPERTY_GEN_APPARENT_DIP_ITEM_NAME      = QObject::tr("Apparent Dip");
+const QString& PROPERTY_GEN_TRUE_DIP_ITEM_NAME          = QObject::tr("True Dip");
+const QString& PROPERTY_GEN_APPARENT_AZI_ITEM_NAME      = QObject::tr("Apparent Azimuth");
+const QString& PROPERTY_GEN_TRUE_AZI_ITEM_NAME          = QObject::tr("True Azimuth");
+
+
+
 AdvancedDipPane::AdvancedDipPane(QWidget *parent)
     : QWidget(parent)
-    , ui(new Ui::AdvancedDipPane), m_dataInterface(nullptr)
+    , ui(new Ui::AdvancedDipPane), m_dataInterface(nullptr), m_propertyGroup(nullptr)
 {
     ui->setupUi(this);
     
@@ -56,32 +63,27 @@ AdvancedDipPane::AdvancedDipPane(QWidget *parent)
     initPropertyPanel();
 }
 
+void AdvancedDipPane::sltValueChangedWithName(const QString& propertyName, const QVariant& value){
+    Q_UNUSED(propertyName);
+    Q_UNUSED(propertyName);
+}
+
 void AdvancedDipPane::initPropertyPanel(){
-    // QVBoxLayout* propertyLayout = new QVBoxLayout(ui->rightPropertyPanelWrapper);
     QLayout* layout = ui->rightPropertyPanelWrapper->layout();
     ui->rightPropertyPanelWrapper->setLayout(layout);
     m_propertyPanel = new PropertyPanel(ui->rightPropertyPanelWrapper);
     layout->addWidget(m_propertyPanel);
 
     // 通用属性
-    PropertyGroup* generalGroup = new PropertyGroup(tr("Data"), m_propertyPanel);
-    // Apparent Dip字段
-    StringPropertyItem* apparentDipItem = new StringPropertyItem(tr("Apparent Dip"), tr("ApparentDip"), generalGroup);
-    generalGroup->addProperty(apparentDipItem);
+    m_propertyGroup = new PropertyGroup(tr("Data"), m_propertyPanel);
+    m_propertyPanel->addGroup(m_propertyGroup);
 
-    // True Dip 字段
-    StringPropertyItem* trueDipItem = new StringPropertyItem(tr("True Dip"), tr("TrueDip"), generalGroup);
-    generalGroup->addProperty(trueDipItem);
+    // 设置数据属性
+    createProperty<StringPropertyItem>(PROPERTY_GEN_APPARENT_DIP_ITEM_NAME, tr("ApparentDip"));
+    createProperty<StringPropertyItem>(PROPERTY_GEN_TRUE_DIP_ITEM_NAME,     tr("TrueDip"));
+    createProperty<StringPropertyItem>(PROPERTY_GEN_APPARENT_AZI_ITEM_NAME, tr("ApparentAzimuth"));
+    createProperty<StringPropertyItem>(PROPERTY_GEN_TRUE_AZI_ITEM_NAME,     tr("TrueAzimuth"));
 
-    // Apparent Azimuth字段
-    StringPropertyItem* apparentAzim = new StringPropertyItem(tr("Apparent Azimuth"), tr("ApparentAzimuth"), generalGroup);
-    generalGroup->addProperty(apparentAzim);
-
-    // True Azimuth字段
-    StringPropertyItem* trueAzim = new StringPropertyItem(tr("True Azimuth"), tr("TrueAzimuth"), generalGroup);
-    generalGroup->addProperty(trueAzim);
-
-    m_propertyPanel->addGroup(generalGroup);
     m_propertyPanel->addGroup(m_stereonetWidget->getPropertyGroup());
     m_propertyPanel->addGroup(m_roseWidget->getPropertyGroup());
 }
@@ -123,22 +125,22 @@ void AdvancedDipPane::setupRoseWrapper()
 
     // 做一些模拟数据
     // 生成随机的strike数据
-    QVector<int> strikes;
-    int count = 120;
-    // 生成一些随机数据，模拟不同方向的分布
-    for (int i = 0; i < 60; i++) {
-        strikes.append(QRandomGenerator::global()->bounded(360));
-    }
-    for (int i = 0; i < 20; i++) {
-        strikes.append(QRandomGenerator::global()->bounded(10, 60));
-    }
-    for (int i = 0; i < 20; i++) {
-        strikes.append(QRandomGenerator::global()->bounded(190, 300));
-    }
-    for (int i = 0; i < 20; i++) {
-        strikes.append(QRandomGenerator::global()->bounded(60, 90));
-    }
-    m_roseWidget->setStrikes(strikes);
+    // QVector<int> strikes;
+    // int count = 120;
+    // // 生成一些随机数据，模拟不同方向的分布
+    // for (int i = 0; i < 60; i++) {
+    //     strikes.append(QRandomGenerator::global()->bounded(360));
+    // }
+    // for (int i = 0; i < 20; i++) {
+    //     strikes.append(QRandomGenerator::global()->bounded(10, 60));
+    // }
+    // for (int i = 0; i < 20; i++) {
+    //     strikes.append(QRandomGenerator::global()->bounded(190, 300));
+    // }
+    // for (int i = 0; i < 20; i++) {
+    //     strikes.append(QRandomGenerator::global()->bounded(60, 90));
+    // }
+    // m_roseWidget->setStrikes(strikes);
 }
 
 void AdvancedDipPane::setupControlPane()
@@ -241,18 +243,17 @@ void AdvancedDipPane::onListWidgetItemClicked(QListWidgetItem *item){
     if(!item){
         return;
     }
-
-    // 获取选中item的文本（即倾角类型）
-    QString type = item->text();
-    // 这里可以使用获取到的type进行后续操作
-    qDebug() << "选中的倾角类型：" << type;
-    QVector<DipData> typeData;
-    this->m_dataInterface->getDataByType(type, typeData);
-    QVector<int> strikes;
-    foreach(auto dipData, typeData){
-        strikes.push_back(static_cast<int>(dipData.strike));
-    }
-    m_roseWidget->setStrikes(strikes);
+    // // 获取选中item的文本（即倾角类型）
+    // QString type = item->text();
+    // // 这里可以使用获取到的type进行后续操作
+    // qDebug() << "选中的倾角类型：" << type;
+    // QVector<DipData> typeData;
+    // this->m_dataInterface->getDataByType(type, typeData);
+    // QVector<int> strikes;
+    // foreach(auto dipData, typeData){
+    //     strikes.push_back(static_cast<int>(dipData.strike));
+    // }
+    // m_roseWidget->setStrikes(strikes);
 }
 
 void AdvancedDipPane::onDataBrowserBtnClicked(){
@@ -285,6 +286,10 @@ void AdvancedDipPane::onDataBrowserBtnClicked(){
     foreach(auto type, defaultDipData) {
         ui->listWidget->addItem(type);
     }
+    // 更新数据到图件当中
+    m_roseWidget->setData(*m_dataInterface);
+    // TODO 更新数据到stereonet -> 董慧琨
+
 }
 
 void AdvancedDipPane::onRadioButtonToggled(bool checked)

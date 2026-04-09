@@ -1,5 +1,4 @@
 #include "dipwidgetbase.h"
-#include "propertygroup.h"
 #include "floatpropertyitem.h"
 #include <QPainter>
 

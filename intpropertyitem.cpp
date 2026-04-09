@@ -17,7 +17,9 @@ IntPropertyItem::IntPropertyItem(const QString& name, int min, int max, int defa
     connect(m_spinBox, QOverload<int>::of(&QSpinBox::valueChanged),
             this, [this](int value) {
                 emit valueChanged(value);
-            });
+                emit valueChangedNoArgs();
+                emit valueChangedWithName(m_name, value);
+    });
 }
 
 

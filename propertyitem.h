@@ -26,7 +26,7 @@ public:
 
 signals:
     void valueChanged(const QVariant& value);
-
+    void valueChangedWithName(const QString& propertyName, const QVariant& value);
     void valueChangedNoArgs();
 
 protected:

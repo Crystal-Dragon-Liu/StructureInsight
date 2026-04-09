@@ -5,6 +5,7 @@
 #include "floatpropertyitem.h"
 #include "singleselectpropertyitem.h"
 
+// 属性名常量
 const QString& PROPERTY_MAX_FREQ        = QObject::tr("Max Frequency");
 const QString& PROPERTY_ANGLE_SIZE      = QObject::tr("Angle Size");
 const QString& PROPERTY_FREQ_SIZE       = QObject::tr("Freq Size");
@@ -14,6 +15,9 @@ const QString& PROPERTY_SHOW_AZI_TYPE   = QObject::tr("Azimuth Type");
 const QString& APPARENT_AZIMUTH_NAME    = QObject::tr("Apparent Azimuth");
 const QString& TRUE_AZIMUTH_NAME        = QObject::tr("True Azimuth");
 const QString& STRIKE_NAME              = QObject::tr("Strikes");
+const QString& PROPERTY_SHOW_LABEL      = QObject::tr("Show Label");
+const QString& YES                      = QObject::tr("Yes");
+const QString& NO                       = QObject::tr("No");
 
 #define PIE_PADDING_RATIO 0.05f
 
@@ -23,7 +27,7 @@ RoseWidget::RoseWidget(QWidget *parent)
 
 RoseWidget::~RoseWidget(){}
 
-void RoseWidget::setData(DipDataAccess& data){
+void RoseWidget:: setData(DipDataAccess& data){
     m_buffer.clear();
     QVector<QString> typeList;
     data.getDipClassSet(typeList);
@@ -32,6 +36,8 @@ void RoseWidget::setData(DipDataAccess& data){
         data.getDataByType(typeList[i], statistic.dips);
         m_buffer.insert(typeList[i], statistic);
     }
+    calculateHistogram();
+    update();
 }
 
 void RoseWidget::setStrikes(const QVector<int> &strikes)
@@ -50,25 +56,27 @@ void RoseWidget::initProperties(){
     }
 
     // 使用的方位数据类型
-    SingleSelectPropertyItem* showDataTypeItem = new SingleSelectPropertyItem(
+    createProperty<SingleSelectPropertyItem>(
         PROPERTY_SHOW_AZI_TYPE,
-        {APPARENT_AZIMUTH_NAME, TRUE_AZIMUTH_NAME, STRIKE_NAME}
+        QStringList({APPARENT_AZIMUTH_NAME, TRUE_AZIMUTH_NAME, STRIKE_NAME}),
+        0
     );
-    connect(showDataTypeItem, SIGNAL(valueChangedNoArgs()), this, SLOT(onUpdateSelfPaint()));
-    m_propertyGroup->addProperty(showDataTypeItem);
 
-    // 刻度最大值
-    FloatPropertyItem* maxFreqItem  = new FloatPropertyItem(PROPERTY_MAX_FREQ, 0, 10000, 20.0, m_propertyGroup);
-    m_propertyGroup->addProperty(maxFreqItem);
+    createProperty<FloatPropertyItem>(
+        PROPERTY_MAX_FREQ, 0, 10000, 20.0
+    );
 
-    // 角度数值大小
-    FloatPropertyItem* angleValueSize = new FloatPropertyItem(PROPERTY_ANGLE_SIZE, 0, 20, 9, m_propertyGroup);
-    connect(angleValueSize, SIGNAL(valueChangedNoArgs()), this, SLOT(onUpdateSelfPaint()));
-    m_propertyGroup->addProperty(angleValueSize);
+    createProperty<FloatPropertyItem>(
+        PROPERTY_ANGLE_SIZE, 0, 20, 9
+    );
 
-    // 频率数值显示尺寸
-    FloatPropertyItem* freqDisplaySizeItem = new FloatPropertyItem(PROPERTY_FREQ_SIZE, 0, 20, 9, m_propertyGroup);
-    m_propertyGroup->addProperty(freqDisplaySizeItem);
+    createProperty<FloatPropertyItem>(
+        PROPERTY_FREQ_SIZE, 0, 20, 9
+    );
+
+    createProperty<SingleSelectPropertyItem>(
+        PROPERTY_SHOW_LABEL, QStringList({YES, NO}), 0
+    );
 
 }
 
@@ -89,6 +97,22 @@ float RoseWidget::getFreqDisplaySize() const{
     }
     else{
         return 9.0f;
+    }
+}
+
+bool  RoseWidget::isShowTypeLabel() const{
+    if(m_propertyGroup){
+        PropertyItem* property = m_propertyGroup->property(PROPERTY_SHOW_LABEL);
+        QString showLabel = property->value().toString();
+        if(showLabel == YES){
+            return true;
+        }
+        else{
+            return false;
+        }
+    }
+    else{
+        return true;
     }
 }
 
@@ -164,21 +188,8 @@ void RoseWidget::drawRoseDiagram(QPainter *painter, const QRect &rect){
                              -startAngle * 180 / M_PI * 16,
                              -(endAngle - startAngle) * 180 / M_PI * 16);
         }
+        iter++;
     }
-    // for (int i = 0; i < 36; i++) {
-    //     double startAngle = (i * 10) * M_PI / 180;
-    //     double endAngle = ((i + 1) * 10) * M_PI / 180;
-
-    //     // 计算扇区的半径比例
-    //     double radiusRatio = m_maxCount > 0 ? (double)m_histogram[i] / m_maxCount : 0;
-    //     int sectorRadius = effectiveRadius * radiusRatio;
-
-    //     // 绘制扇区
-    //     painter->drawPie(centerX - sectorRadius, centerY - sectorRadius,
-    //                      2 * sectorRadius, 2 * sectorRadius,
-    //                      -startAngle * 180 / M_PI * 16,
-    //                      -(endAngle - startAngle) * 180 / M_PI * 16);
-    // }
     painter->restore();
 }
 
@@ -187,7 +198,6 @@ void RoseWidget::drawGrid(QPainter *painter, const QRect &rect){
     int centerX = rect.center().x();
     int centerY = rect.center().y();
     int radius = qMin(rect.width(), rect.height()) / 2;
-    qDebug() << rect.width() << ", " << rect.height();
 
     // 在最外面向外扩展一点空间，与matplotlib的效果类似
     double padding = PIE_PADDING_RATIO; // 5%的额外空间
@@ -295,6 +305,7 @@ void RoseWidget::paintEvent(QPaintEvent *event)
 
     QRect rect = this->rect();
     int margin = 100;
+    // 将绘制区域分割为上下两个区域, 上区域为玫瑰图区域
     QRect diagramRectBoundingRect = rect.adjusted(margin / 2, margin / 2, -margin / 2, -margin / 2);
     QRect diagramRect = rect.adjusted(margin, margin, -margin, -margin);
 
@@ -307,11 +318,50 @@ void RoseWidget::paintEvent(QPaintEvent *event)
         painter.drawText(diagramRect.center(), "No data");
         return;
     }
-
+    qDebug() << "Drawing";
     drawGrid(&painter, diagramRect);
     drawRoseDiagram(&painter, diagramRect);
     drawLabels(&painter, diagramRect);
     drawInfo(&painter, rect);
+}
+
+QRect RoseWidget::calculateLabelRegion(const QRect& totalRegion){
+    // 查看有多少种产状类型被加载
+    QStringList keys = m_buffer.keys();
+    // 找到最长的字符宽度
+    float fontSize = getInfoFontSize();
+    auto font = QFont("Arial", fontSize);
+    QFontMetrics metrics(font);
+    // label文本和color之间的空隙
+    int space = 5;
+    // label的高度
+    int keyMaxHeight = metrics.height();
+    // label的最大宽度
+    int keyMaxWidth = -99999.0;
+    foreach(auto key, keys){
+        int keyWidth = metrics.boundingRect(key).width();
+        if(keyWidth > keyMaxWidth){
+            keyMaxWidth = keyWidth;
+        }
+    }
+    // label颜色标记的宽度
+    int labelColorRectSize = keyMaxHeight;
+
+    // 单个label所占区域的宽度
+    int labelRectWidth = keyMaxWidth + labelColorRectSize + space;
+    int labelStartPosX = 0;
+    int curRowIdx = 0;
+    for(int i = 0; i < keys.size(); i++){
+        if((totalRegion.left() + labelStartPosX * labelRectWidth) > totalRegion.right()){
+            labelStartPosX = 0;
+            curRowIdx++;
+        }
+        QRect labelRect = QRect(
+            totalRegion.left() + labelStartPosX * labelRectWidth,
+            totalRegion.top() + curRowIdx * labelColorRectSize, labelRectWidth, labelColorRectSize);
+        labelStartPosX++;
+    }
+    return QRect();
 }
 
 void RoseWidget::calculateHistogram(AzimuthStatistic& dips, const DipDataType & dataType){
@@ -363,5 +413,6 @@ void RoseWidget::calculateHistogram(){
     auto iter = m_buffer.begin();
     while(iter != m_buffer.end()){
         calculateHistogram(iter.value(), showType);
+        iter++;
     }
 }

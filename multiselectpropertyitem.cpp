@@ -37,6 +37,8 @@ MultiSelectPropertyItem::MultiSelectPropertyItem(const QString& name, const QStr
                     }
                 }
                 emit valueChanged(selected);
+                emit valueChangedNoArgs();
+                emit valueChangedWithName(m_name, selected);
             });
 }
 

@@ -21,7 +21,9 @@ SingleSelectPropertyItem::SingleSelectPropertyItem(const QString& name, const QS
     connect(m_comboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, [this](int index) {
                 emit valueChanged(m_comboBox->currentText());
-            });
+                emit valueChangedNoArgs();
+                emit valueChangedWithName(m_name, m_comboBox->currentText());
+    });
 }
 
 

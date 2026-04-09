@@ -2,6 +2,8 @@
 #define DIPWIDGETBASE_H
 
 #include <QWidget>
+#include "propertygroup.h"
+
 
 class PropertyGroup;
 class QPainter;
@@ -56,7 +58,16 @@ protected:
     // 窗口类型名称, 用于属性适配
     QString m_widgetName;
 
-signals:
+protected:
+    // 通用属性创建函数
+    template<typename PropType, typename... Args>
+    void createProperty(Args&&... args)
+    {
+        PropType* item = new PropType(std::forward<Args>(args)..., m_propertyGroup);
+        connect(item, &PropType::valueChangedNoArgs, this, &DipWidgetBase::onUpdateSelfPaint);
+        m_propertyGroup->addProperty(item);
+    }
+
 };
 
 #endif // DIPWIDGETBASE_H

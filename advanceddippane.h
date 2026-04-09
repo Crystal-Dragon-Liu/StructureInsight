@@ -2,6 +2,7 @@
 #define ADVANCEDDIPPANE_H
 
 #include <QWidget>
+#include "propertygroup.h"
 
 namespace Ui {
 class AdvancedDipPane;
@@ -55,6 +56,21 @@ private:
 
     // 属性栏(可选)
     PropertyPanel* m_propertyPanel = nullptr;
+
+    // 通用属性组
+    PropertyGroup* m_propertyGroup = nullptr;
+private:
+    void sltValueChangedWithName(const QString& propertyName, const QVariant& value);
+
+protected:
+    // 通用属性创建函数
+    template<typename PropType, typename... Args>
+    void createProperty(Args&&... args)
+    {
+        PropType* item = new PropType(std::forward<Args>(args)..., m_propertyPanel);
+        connect(item, &PropType::valueChangedWithName, this, &AdvancedDipPane::sltValueChangedWithName);
+        m_propertyGroup->addProperty(item);
+    }
 };
 
 #endif // ADVANCEDDIPPANE_H

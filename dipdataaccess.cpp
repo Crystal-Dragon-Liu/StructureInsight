@@ -33,7 +33,7 @@ bool DipDataAccess::fetchDataFromFile(const QString& dipFilePath){
 
     // 检查图头有效性
     QStringList headerParts = header.split(",");
-    if(headerParts.size() != 4){
+    if(headerParts.size() < 4){
         file.close();
         return false;
     }
@@ -54,32 +54,32 @@ bool DipDataAccess::fetchDataFromFile(const QString& dipFilePath){
         if(line.isEmpty()){ continue; }
         // 按逗号分割成单元格
         QStringList cells = line.split(',');
-        if(cells.size() != 4){
-            file.close();
+        if(cells.size() != headerParts.size()){
+            // file.close();
             continue;
         }
 
         DipData data;
         bool ok;
         // 获取深度
-        data.depth = cells[0].toFloat(&ok);
+        data.depth = cells[itemIdxVec[0]].toFloat(&ok);
         if(!ok){ continue;}
         // 获取视倾角
-        data.appDip = cells[1].toFloat(&ok);
+        data.appDip = cells[itemIdxVec[1]].toFloat(&ok);
         if(!ok || data.appDip < 0.f || data.appDip > 90.0f){
             continue;
         }
         // 获取视倾向
-        data.appAzi = cells[2].toFloat(&ok);
+        data.appAzi = cells[itemIdxVec[2]].toFloat(&ok);
         if(!ok || data.appAzi < 0.f || data.appAzi > 360.f){
             continue;
         }
         // 获取真倾角
-        data.trueDip = cells[3].toFloat(&ok);
+        data.trueDip = cells[itemIdxVec[3]].toFloat(&ok);
         if(!ok || data.trueDip < 0.f || data.trueDip > 90.0f){
             continue;
         }
-        data.trueAzi = cells[4].toFloat(&ok);
+        data.trueAzi = cells[itemIdxVec[4]].toFloat(&ok);
         if(!ok || data.trueAzi < 0.f || data.trueAzi > 360.0f){
             continue;
         }
@@ -90,7 +90,7 @@ bool DipDataAccess::fetchDataFromFile(const QString& dipFilePath){
                 data.strike += 360.0f;
             }
         }
-        data.type = cells[5];
+        data.type = cells[itemIdxVec[5]];
         m_data.push_back(data);
     }
     file.close();
