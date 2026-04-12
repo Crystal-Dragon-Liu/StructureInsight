@@ -201,7 +201,7 @@ void StereonetWidget::paintEvent(QPaintEvent *event)
     painter.setPen(QPen(Qt::black, 1));
 
 
-    drawInfo(&painter, rect());
+    // drawInfo(&painter, rect());
 }
 
 void StereonetWidget::resizeEvent(QResizeEvent *event)
@@ -308,4 +308,11 @@ void StereonetWidget::initProperties(){
     SingleSelectPropertyItem* projectionType = new SingleSelectPropertyItem(tr("Projection Type"), {tr("Equal-Area"), tr("Equal-Angle")}, 0, m_propertyGroup);
     m_propertyGroup->addProperty(projectionType);
 
+}
+
+void StereonetWidget::onUpdateWithPropertyChanged(const QString& propertyName, const QVariant& value){
+    Q_UNUSED(propertyName)
+    Q_UNUSED(value);
+    // TODO 处理属性更改时的信号
+    return;
 }

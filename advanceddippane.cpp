@@ -22,7 +22,7 @@ const QString& PROPERTY_GEN_TRUE_DIP_ITEM_NAME          = QObject::tr("True Dip"
 const QString& PROPERTY_GEN_APPARENT_AZI_ITEM_NAME      = QObject::tr("Apparent Azimuth");
 const QString& PROPERTY_GEN_TRUE_AZI_ITEM_NAME          = QObject::tr("True Azimuth");
 
-
+#define DEBUG_MODE
 
 AdvancedDipPane::AdvancedDipPane(QWidget *parent)
     : QWidget(parent)
@@ -39,11 +39,6 @@ AdvancedDipPane::AdvancedDipPane(QWidget *parent)
     // 初始化各个组件
     setupStereonetWrapper();
     setupRoseWrapper();
-    setupControlPane();
-    
-    // 连接 stackedWidget 的切换信号
-    connect(ui->stackedWidget, &QStackedWidget::currentChanged, 
-            this, &AdvancedDipPane::onStackedWidgetChanged);
     
     // 连接 radioButton 的信号
     connect(ui->stereonetBtn, &QRadioButton::toggled, 
@@ -61,6 +56,8 @@ AdvancedDipPane::AdvancedDipPane(QWidget *parent)
     m_dataInterface = new DipDataAccess(this);
     // 构建属性面板
     initPropertyPanel();
+    // 测试数据
+    onDataBrowserBtnClicked();
 }
 
 void AdvancedDipPane::sltValueChangedWithName(const QString& propertyName, const QVariant& value){
@@ -122,82 +119,9 @@ void AdvancedDipPane::setupRoseWrapper()
         // 目前先留空或添加占位符
         roseLayout->addWidget(m_roseWidget);
     }
-
-    // 做一些模拟数据
-    // 生成随机的strike数据
-    // QVector<int> strikes;
-    // int count = 120;
-    // // 生成一些随机数据，模拟不同方向的分布
-    // for (int i = 0; i < 60; i++) {
-    //     strikes.append(QRandomGenerator::global()->bounded(360));
-    // }
-    // for (int i = 0; i < 20; i++) {
-    //     strikes.append(QRandomGenerator::global()->bounded(10, 60));
-    // }
-    // for (int i = 0; i < 20; i++) {
-    //     strikes.append(QRandomGenerator::global()->bounded(190, 300));
-    // }
-    // for (int i = 0; i < 20; i++) {
-    //     strikes.append(QRandomGenerator::global()->bounded(60, 90));
-    // }
-    // m_roseWidget->setStrikes(strikes);
 }
 
-void AdvancedDipPane::setupControlPane()
-{
-    // 根据当前显示的页面加载相应的控制面板
-    onStackedWidgetChanged(ui->stackedWidget->currentIndex());
-}
 
-void AdvancedDipPane::onStackedWidgetChanged(int index)
-{
-    // 清除 controlPane 中现有的控件
-    QVBoxLayout *controlLayout = qobject_cast<QVBoxLayout*>(ui->controlPane->layout());
-    if (!controlLayout) {
-        return;
-    }
-    
-    // 移除现有的控制面板，但不删除它们，只是从布局中移除
-    while (QLayoutItem *item = controlLayout->takeAt(0)) {
-        if (QWidget *widget = item->widget()) {
-            // 从布局中移除，但不删除
-            widget->setParent(nullptr);
-        }
-        delete item;
-    }
-    
-    if (index == 0) {
-        // 显示 stereonetWrapper，加载 StereonetControlPane
-        if (!m_stereonetControlPane) {
-            m_stereonetControlPane = new StereonetControlPane(this);
-            
-            // 只连接一次信号
-            if (QComboBox *projectionCombo = m_stereonetControlPane->findChild<QComboBox*>("projectionComboBox")) {
-                connect(projectionCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                        this, &AdvancedDipPane::onProjectionTypeChanged);
-            }
-            if (QPushButton *addPlaneBtn = m_stereonetControlPane->findChild<QPushButton*>("addPlaneBtn")) {
-                connect(addPlaneBtn, &QPushButton::clicked,
-                        this, &AdvancedDipPane::onAddPlaneClicked);
-            }
-            if (QPushButton *clearBtn = m_stereonetControlPane->findChild<QPushButton*>("clearBtn")) {
-                connect(clearBtn, &QPushButton::clicked,
-                        this, &AdvancedDipPane::onClearClicked);
-            }
-        }
-        // 设置父控件并添加到布局
-        m_stereonetControlPane->setParent(ui->controlPane);
-        controlLayout->addWidget(m_stereonetControlPane);
-    } else if (index == 1) {
-        // 显示 roseWrapper，加载 RoseControlPane
-        if (!m_roseControlPane) {
-            m_roseControlPane = new RoseControlPane(this);
-        }
-        // 设置父控件并添加到布局
-        m_roseControlPane->setParent(ui->controlPane);
-        controlLayout->addWidget(m_roseControlPane);
-    }
-}
 
 void AdvancedDipPane::onAddPlaneClicked()
 {
@@ -243,20 +167,14 @@ void AdvancedDipPane::onListWidgetItemClicked(QListWidgetItem *item){
     if(!item){
         return;
     }
-    // // 获取选中item的文本（即倾角类型）
-    // QString type = item->text();
-    // // 这里可以使用获取到的type进行后续操作
-    // qDebug() << "选中的倾角类型：" << type;
-    // QVector<DipData> typeData;
-    // this->m_dataInterface->getDataByType(type, typeData);
-    // QVector<int> strikes;
-    // foreach(auto dipData, typeData){
-    //     strikes.push_back(static_cast<int>(dipData.strike));
-    // }
-    // m_roseWidget->setStrikes(strikes);
 }
 
 void AdvancedDipPane::onDataBrowserBtnClicked(){
+
+#ifdef DEBUG_MODE
+    QString filePath = "/Users/yunziyao/dev/StructureInsight/assets/dip_data_v3.csv";
+    ui->lineEdit->setText(filePath);
+#else
     // 打开文件选择对话框，只允许选择.csv文件
     QDir currentDir = QDir::current();
     QString filePath = QFileDialog::getOpenFileName(
@@ -270,6 +188,7 @@ void AdvancedDipPane::onDataBrowserBtnClicked(){
         // 更新lineEdit显示选中的文件路径
         ui->lineEdit->setText(filePath);
     }
+#endif
 
     // 更新数据
 

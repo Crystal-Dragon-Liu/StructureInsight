@@ -93,33 +93,6 @@
        </widget>
       </item>
       <item>
-       <widget class="QGroupBox" name="controlPane">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="title">
-         <string>Control Pane</string>
-        </property>
-        <layout class="QVBoxLayout" name="controlPaneLayout">
-         <property name="leftMargin">
-          <number>0</number>
-         </property>
-         <property name="topMargin">
-          <number>0</number>
-         </property>
-         <property name="rightMargin">
-          <number>0</number>
-         </property>
-         <property name="bottomMargin">
-          <number>0</number>
-         </property>
-        </layout>
-       </widget>
-      </item>
-      <item>
        <widget class="QGroupBox" name="plotType">
         <property name="title">
          <string>Plot type</string>

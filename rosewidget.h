@@ -3,7 +3,6 @@
 
 // #include <QWidget>
 #include "dipwidgetbase.h"
-#include "dipdataaccess.h"
 
 
 
@@ -14,17 +13,10 @@ class RoseWidget : public DipWidgetBase
     Q_OBJECT
 public:
 
-    struct AzimuthStatistic{
-        QList<DipData> dips;
-        QVector<float> hist;
-    };
-
     explicit RoseWidget(QWidget *parent = nullptr);
     ~RoseWidget();
 
     void setData(DipDataAccess& data);
-
-    void setStrikes(const QVector<int> &strikes);
 
     void setTitle(const QString& title);
 
@@ -35,14 +27,12 @@ public:
     float getFreqDisplaySize() const;
     float getAngleValueSize() const;
     DipDataType getDipDataType() const;
+    QString getDipDataTypeStr() const;
     bool  isShowTypeLabel() const;
+    bool  isMirror() const;
 
     // 初始化属性
     void initProperties() override;
-
-
-public slots:
-    void onSetStrikes(const QVector<int>& strikes);
 
 protected:
     void paintEvent(QPaintEvent* event) override;
@@ -53,9 +43,8 @@ private:
     QString m_title;
     int m_maxCount;
 
-    // 分组记录不同类型的histogram
-    QMap<QString, AzimuthStatistic> m_buffer;
-
+public slots:
+    void onUpdateWithPropertyChanged(const QString& propertyName, const QVariant& value) override;
 
 private:
 
@@ -64,24 +53,25 @@ private:
     void calculateHistogram();
 
     /*@brief 计算绘制Label需要的rect大小*/
-    QRect calculateLabelRegion(const QRect& totalRegion);
+    QList<QRect> calculateLabelRegion(const QRect& totalRegion);
 
     /*
      * @brief 绘制Rose图
      */
-    void drawRoseDiagram(QPainter *painter, const QRect &rect);
+    void drawRoseDiagram2(QPainter *painter, const QRect &rect);
     /*
      * @brief 绘制玫瑰图网格
      * @details TODO 目前网格数量是固定的, 等待优化完善
      */
-    void drawGrid(QPainter *painter, const QRect &rect);
+    void drawGrid2(QPainter *painter, const QRect &rect);
     /*
      * @brief 绘制网格旁边的label
      */
-    void drawLabels(QPainter *painter, const QRect &rect);
+    void drawLabels2(QPainter *painter, const QRect &rect);
 
-    /*@brief 绘制信息*/
-    // void drawInfo(QPainter* painter, const QRect& rect);
+    QVector<double> calculateSmartGridValues(double maxValue);
+
+
 };
 
 #endif // ROSEWIDGET_H

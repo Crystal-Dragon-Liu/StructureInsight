@@ -49,6 +49,9 @@ private:
     QVector<QVector<QPointF>> m_originalGreatCircles; // 保存原始大圆（避免旋转污染）
     QVector<QVector<QPointF>> m_originalSmallCircles; // 保存原始小圆（避免旋转污染）
     QVector<Line> m_originalGreatCirclePoles; // 保存生成每个大圆的原始极点
+
+public slots:
+    void onUpdateWithPropertyChanged(const QString& propertyName, const QVariant& value) override;
 };
 
 #endif // STEREONETWIDGET_H

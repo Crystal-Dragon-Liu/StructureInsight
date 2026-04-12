@@ -27,7 +27,6 @@ public:
     void initPropertyPanel();
 
 private slots:
-    void onStackedWidgetChanged(int index);
     void onAddPlaneClicked();
     void onClearClicked();
     void onProjectionTypeChanged(int index);
@@ -39,7 +38,6 @@ private slots:
 private:
     void setupStereonetWrapper();
     void setupRoseWrapper();
-    void setupControlPane();
 
     Ui::AdvancedDipPane *ui;
     

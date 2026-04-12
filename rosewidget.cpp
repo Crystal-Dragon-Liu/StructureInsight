@@ -4,6 +4,9 @@
 #include "propertygroup.h"
 #include "floatpropertyitem.h"
 #include "singleselectpropertyitem.h"
+#include <QRandomGenerator> // 随机数核心类
+#include <QDateTime>
+#include <QColor>
 
 // 属性名常量
 const QString& PROPERTY_MAX_FREQ        = QObject::tr("Max Frequency");
@@ -18,35 +21,59 @@ const QString& STRIKE_NAME              = QObject::tr("Strikes");
 const QString& PROPERTY_SHOW_LABEL      = QObject::tr("Show Label");
 const QString& YES                      = QObject::tr("Yes");
 const QString& NO                       = QObject::tr("No");
+const QString& PROPERTY_MIRROR_OR_NOT   = QObject::tr("Mirror");
+const QString& NORTH_ITEM_NAME          = QObject::tr("N");
+const QString& SOUTH_ITEM_NAME          = QObject::tr("S");
+const QString& WEST_ITEM_NAME           = QObject::tr("W");
+const QString& EAST_ITEM_NAME           = QObject::tr("E");
 
+
+#define DEBUG_MODE
 #define PIE_PADDING_RATIO 0.05f
 
 RoseWidget::RoseWidget(QWidget *parent)
-    : DipWidgetBase{parent, ROSE_WIDGET_NAME}, m_maxCount(0), m_title(ROSE_WIDGET_NAME){
-}
+    : DipWidgetBase{parent, ROSE_WIDGET_NAME},
+    m_maxCount(0),
+    m_title(ROSE_WIDGET_NAME){}
 
 RoseWidget::~RoseWidget(){}
 
 void RoseWidget:: setData(DipDataAccess& data){
+    // QRandomGenerator::global()->seed(QDateTime::currentMSecsSinceEpoch());
     m_buffer.clear();
     QVector<QString> typeList;
     data.getDipClassSet(typeList);
+    float sdep = 99999;
+    float edep = -99999;
     for(int i = 0; i < typeList.size(); i++){
         AzimuthStatistic statistic;
         data.getDataByType(typeList[i], statistic.dips);
+        foreach(auto dip,  statistic.dips){
+            if(sdep > dip.depth){
+                sdep = dip.depth;
+            }
+            if(edep < dip.depth){
+                edep = dip.depth;
+            }
+        }
+
+        // 设置该类型对应的颜色
+        // TODO 需要找到更好的办法来设置类型颜色
+        int r = QRandomGenerator::global()->bounded(256);
+        int g = QRandomGenerator::global()->bounded(256);
+        int b = QRandomGenerator::global()->bounded(256);
+        statistic.color = QColor(r, g, b);
         m_buffer.insert(typeList[i], statistic);
     }
+
+    // 设置一下深度数据
+    setTopDepth(sdep);
+    setBottomDepth(edep);
+    // 重新计算直方图数据
     calculateHistogram();
     update();
 }
 
-void RoseWidget::setStrikes(const QVector<int> &strikes)
-{
-    m_strikes = strikes;
-    m_dataNum = strikes.size();
-    calculateHistogram();
-    update();
-}
 
 void RoseWidget::initProperties(){
     DipWidgetBase::initProperties();
@@ -59,6 +86,13 @@ void RoseWidget::initProperties(){
     createProperty<SingleSelectPropertyItem>(
         PROPERTY_SHOW_AZI_TYPE,
         QStringList({APPARENT_AZIMUTH_NAME, TRUE_AZIMUTH_NAME, STRIKE_NAME}),
+        1
+    );
+
+    // 是否进行镜像
+    createProperty<SingleSelectPropertyItem>(
+        PROPERTY_MIRROR_OR_NOT,
+        QStringList({YES, NO}),
         0
     );
 
@@ -79,6 +113,15 @@ void RoseWidget::initProperties(){
     );
 
 }
+
+
+void RoseWidget::onUpdateWithPropertyChanged(const QString& propertyName, const QVariant& value){
+    if(propertyName.compare(PROPERTY_SHOW_AZI_TYPE) == 0){
+        calculateHistogram();
+        update();
+    }
+}
+
 
 float RoseWidget::getMaxFreq() const{
     if(m_propertyGroup){
@@ -116,6 +159,32 @@ bool  RoseWidget::isShowTypeLabel() const{
     }
 }
 
+bool  RoseWidget::isMirror() const{
+    if(m_propertyGroup){
+        PropertyItem* property = m_propertyGroup->property(PROPERTY_MIRROR_OR_NOT);
+        QString showLabel = property->value().toString();
+        if(showLabel == YES){
+            return true;
+        }
+        else{
+            return false;
+        }
+    }
+    else{
+        return true;
+    }
+}
+
+QString RoseWidget::getDipDataTypeStr() const{
+    if(m_propertyGroup){
+        PropertyItem* property = m_propertyGroup->property(PROPERTY_SHOW_AZI_TYPE);
+        return property->value().toString();
+    }
+    else{
+        return "UNKNOWN";
+    }
+}
+
 DipDataType RoseWidget::getDipDataType() const{
     if(m_propertyGroup){
         PropertyItem* property = m_propertyGroup->property(PROPERTY_SHOW_AZI_TYPE);
@@ -146,11 +215,6 @@ float RoseWidget::getAngleValueSize() const{
     }
 }
 
-void RoseWidget::onSetStrikes(const QVector<int>& strikes){
-    setStrikes(strikes);
-    // 设置数据长度
-    setDataNum(strikes.size());
-}
 
 void RoseWidget::setTitle(const QString &title)
 {
@@ -158,42 +222,8 @@ void RoseWidget::setTitle(const QString &title)
     update();
 }
 
-void RoseWidget::drawRoseDiagram(QPainter *painter, const QRect &rect){
-    painter->save();
-    int centerX = rect.center().x();
-    int centerY = rect.center().y();
-    int radius = qMin(rect.width(), rect.height()) / 2;
 
-    painter->setPen(QPen(Qt::black, 1));
-    painter->setBrush(QBrush(QColor(200, 200, 200)));
-
-    // 预留一些空间，与matplotlib的效果类似
-    double padding = PIE_PADDING_RATIO; // 5%的额外空间
-    int effectiveRadius = radius * (1 - padding);
-
-    // 绘制玫瑰图的每个扇区
-    auto iter = m_buffer.begin();
-    while(iter != m_buffer.end()){
-        for (int i = 0; i < 36; i++) {
-            double startAngle = (i * 10) * M_PI / 180;
-            double endAngle = ((i + 1) * 10) * M_PI / 180;
-
-            // 计算扇区的半径比例
-            double radiusRatio = m_maxCount > 0 ? (double)m_buffer[iter.key()].hist[i] / m_maxCount : 0;
-            int sectorRadius = effectiveRadius * radiusRatio;
-
-            // 绘制扇区
-            painter->drawPie(centerX - sectorRadius, centerY - sectorRadius,
-                             2 * sectorRadius, 2 * sectorRadius,
-                             -startAngle * 180 / M_PI * 16,
-                             -(endAngle - startAngle) * 180 / M_PI * 16);
-        }
-        iter++;
-    }
-    painter->restore();
-}
-
-void RoseWidget::drawGrid(QPainter *painter, const QRect &rect){
+void RoseWidget::drawGrid2(QPainter *painter, const QRect &rect){
     painter->save();
     int centerX = rect.center().x();
     int centerY = rect.center().y();
@@ -208,12 +238,14 @@ void RoseWidget::drawGrid(QPainter *painter, const QRect &rect){
     // 绘制同心圆网格
     if (m_maxCount > 0) {
         // 计算合适的网格数量
-        int numCircles = qMin(5, m_maxCount);
-        if (numCircles < 2) numCircles = 2; // 至少2个网格
-        
+        QVector<double> gridValues = calculateSmartGridValues(m_maxCount);
+        qDebug() << gridValues.size();
+        int numCircles = gridValues.size();
+
         // 确保最外面的圆对应m_maxCount
-        for (int i = 1; i <= numCircles; i++) {
-            double ratio = (double)i / numCircles;
+        for (int i = 1; i < numCircles; i++) {
+            double ratio = gridValues[i] / m_maxCount;
+            ratio = sqrt(gridValues[i]) / sqrt(m_maxCount);
             int circleRadius = radius * ratio;
             painter->drawEllipse(centerX - circleRadius, centerY - circleRadius,
                                  2 * circleRadius, 2 * circleRadius);
@@ -221,7 +253,7 @@ void RoseWidget::drawGrid(QPainter *painter, const QRect &rect){
     } else {
         // 没有数据时绘制固定网格
         int numCircles = 5;
-        for (int i = 1; i <= numCircles; i++) {
+        for (int i = 1; i < numCircles; i++) {
             int circleRadius = radius * i / numCircles;
             painter->drawEllipse(centerX - circleRadius, centerY - circleRadius,
                                  2 * circleRadius, 2 * circleRadius);
@@ -247,53 +279,53 @@ void RoseWidget::drawGrid(QPainter *painter, const QRect &rect){
     painter->restore();
 }
 
-void RoseWidget::drawLabels(QPainter *painter, const QRect &rect){
-    painter->save();
-    int centerX = rect.center().x();
-    int centerY = rect.center().y();
-    int radius = qMin(rect.width(), rect.height()) / 2;
-    painter->setPen(QPen(Qt::black, 1));
-    painter->setFont(QFont("Arial", 10));
-
-    double padding = 0.1;
-    int extendRadius = radius * (1+padding);
-
-    // 绘制刻度标签
-    painter->setFont(QFont("Arial", 8));
-    if (m_maxCount > 0) {
-        int numCircles = qMin(5, m_maxCount);
-        if (numCircles < 2) numCircles = 2;
-
-        for (int i = 1; i <= numCircles; i++) {
-            double ratio = (double)i / numCircles;
-            int value = (int)(m_maxCount * ratio + 0.5); // 四舍五入
-            int circleRadius = radius * ratio;
-            painter->drawText(centerX + 10, centerY - circleRadius + 4, QString::number(value));
-        }
+QVector<double> RoseWidget::calculateSmartGridValues(double maxValue){
+    QVector<double> gridValues;
+    if(maxValue <= 0){
+        // 没有数据时返回固定值
+        gridValues << 0.2 << 0.4 << 0.6 << 0.8 << 1.0;
+        return gridValues;
+    }
+    // 计算格线数量
+    int numGrids = 5;
+    // 计算合适的格线间距
+    double range = maxValue;
+    double exponent = floor(log10(range));
+    double fraction = range / pow(10, exponent);
+    double step;
+    if (fraction <= 1.5) {
+        step = 0.2 * pow(10, exponent);
+    } else if (fraction <= 3) {
+        step = 0.5 * pow(10, exponent);
+    } else if (fraction <= 7) {
+        step = 1.0 * pow(10, exponent);
     } else {
-        // 没有数据时绘制固定标签
-        int numCircles = 5;
-        for (int i = 1; i <= numCircles; i++) {
-            int circleRadius = radius * i / numCircles;
-            painter->drawText(centerX + 10, centerY - circleRadius + 4, QString::number(i));
+        step = 2.0 * pow(10, exponent);
+    }
+    // 调整步长以确保合适的格线数量
+    double estimatedGrids = range / step;
+    if (estimatedGrids > 8) {
+        step *= 2;
+    } else if (estimatedGrids < 3) {
+        step /= 2;
+    }
+    // 生成格线值
+    double currentValue = 0;
+    while (currentValue <= maxValue * 1.05) { // 稍微超过最大值
+        if (currentValue > 0) { // 跳过0值格线
+            gridValues << currentValue;
         }
+        currentValue += step;
     }
-
-    // 绘制360度数值标签
-    float angleSize = this->getAngleValueSize();
-    qDebug() << "Using Angle value size: " << angleSize;
-    painter->setFont(QFont("Arial", angleSize));
-    for(int angle = 0; angle < 360; angle += 10){
-        double rad = qDegreesToRadians(angle);
-        int labelX = centerX + (extendRadius) * cos(rad);
-        int labelY = centerY + (extendRadius) * sin(rad);
-        QFontMetrics metrics(painter->font());
-        QString angleText = QString::number(angle);
-        int textWidth = metrics.horizontalAdvance(angleText);
-        int textHeight = metrics.height();
-        painter->drawText(labelX - textWidth / 2, labelY + textHeight / 4, angleText);
+    // 确保至少有一条格线
+    if (gridValues.isEmpty()) {
+        gridValues << step;
     }
-    painter->restore();
+    // 限制格线数量在合理范围内
+    if (gridValues.size() > 6) {
+        gridValues = gridValues.mid(0, 6);
+    }
+    return gridValues;
 }
 
 void RoseWidget::paintEvent(QPaintEvent *event)
@@ -304,28 +336,232 @@ void RoseWidget::paintEvent(QPaintEvent *event)
     painter.setRenderHint(QPainter::Antialiasing, true);
 
     QRect rect = this->rect();
+
+    // 获取有多少种rect
+    QStringList keys = m_buffer.keys();
+    float fontSize = getInfoFontSize();
+    auto font = QFont("Arial", fontSize);
+    QFontMetrics metrics(font);
+    // 所有label排列后的高度
+    int keyMaxHeight = metrics.height();
+    int keyTotalHeight = keyMaxHeight * (keys.size() + 1) + keys.size() * TEXT_HEIGHT_OFFSET*6;
+
+    // 头顶图像摘要
+    int abstractTotalRectMaxHeight = keyMaxHeight * 3;
     int margin = 100;
     // 将绘制区域分割为上下两个区域, 上区域为玫瑰图区域
-    QRect diagramRectBoundingRect = rect.adjusted(margin / 2, margin / 2, -margin / 2, -margin / 2);
-    QRect diagramRect = rect.adjusted(margin, margin, -margin, -margin);
+    int space = TEXT_HEIGHT_OFFSET * 6;
 
-    // 绘制边框
-    painter.drawRect(diagramRect);
-    painter.drawRect(diagramRectBoundingRect);
-    painter.drawRect(rect);
+    QRect labelTotalRect = QRect(
+        rect.left() + margin /2,
+        rect.top() + rect.height() - margin/2 - keyTotalHeight + space,
+        rect.width() - margin,
+        keyTotalHeight
+    );
+
+    // 外部绘制区域
+    QRect diagramRectBoundingRect = rect.adjusted(
+        margin / 2,
+        margin / 2 + abstractTotalRectMaxHeight + space,
+        -margin / 2,
+        -margin / 2 - keyTotalHeight
+    );
+    // 核心绘制区域
+    QRect diagramRect = diagramRectBoundingRect.adjusted(
+        margin/2    + TEXT_HEIGHT_OFFSET*4,
+        margin/2    + TEXT_HEIGHT_OFFSET*4,
+        -margin/2   - TEXT_HEIGHT_OFFSET*4,
+        -margin/2   - TEXT_HEIGHT_OFFSET*4);
+    // 绘图摘要放置区域
+    QRect abstractTotalRect = QRect(
+        rect.left() + margin / 2,
+        rect.top() + margin/2,
+        rect.width() - margin,
+        abstractTotalRectMaxHeight
+    );
+
+#ifdef DEBUG_MODE
+    debug_drawRect(&painter, DEBUG_CANVAS_RECT_COLOR    , rect,                     "Rect");
+    // debug_drawRect(&painter, DEBUG_PLOT_RECT_COLOR      , diagramRectBoundingRect,  "Outside Rect");
+    // debug_drawRect(&painter, DEBUG_PLOT_RECT_COLOR      , diagramRect,              "Inside Rect");
+    // debug_drawRect(&painter, DEBUG_INFO_RECT_COLOR      , labelTotalRect,           "Label Rect");
+    // debug_drawRect(&painter, DEBUG_INFO_RECT_COLOR      , abstractTotalRect,        "Abstract Rect");
+#endif
 
     if(m_buffer.size() == 0){
         painter.drawText(diagramRect.center(), "No data");
         return;
     }
-    qDebug() << "Drawing";
-    drawGrid(&painter, diagramRect);
-    drawRoseDiagram(&painter, diagramRect);
-    drawLabels(&painter, diagramRect);
-    drawInfo(&painter, rect);
+
+    // TODO 绘制画布
+    drawCanvas(&painter, diagramRectBoundingRect);
+    // 绘制网格
+    drawGrid2(&painter, diagramRect);
+
+    // 绘制玫瑰图
+    drawRoseDiagram2(&painter, diagramRect);
+
+    // 绘制label(包括颜色等)
+    drawLabels2(&painter, diagramRect);
+
+    // 整理绘图摘要的信息
+    QStringList abstractList;
+    // Plot name.
+    abstractList << QString(tr("Stereonet : %1").arg("DIP TEST"));
+    QString indexType = "M";
+    // 深度信息
+    abstractList << QString(tr("Reference(%1) : [%2 - %3]")
+                                .arg(indexType)
+                                .arg(getTopDepth())
+                                .arg(getBottomDepth()));
+    // 绘图摘要信息
+    abstractList << QString(tr("Rose - %1").arg(getDipDataTypeStr()));
+    drawAbstractInfo(&painter, abstractTotalRect, abstractList);
+
+    // 绘制label
+    drawTypeLabel(&painter, labelTotalRect, keys);
+
 }
 
-QRect RoseWidget::calculateLabelRegion(const QRect& totalRegion){
+void RoseWidget::drawLabels2(QPainter* painter, const QRect& rect){
+    painter->save();
+    int centerX = rect.center().x();
+    int centerY = rect.center().y();
+    int radius = qMin(rect.width(), rect.height()) / 2;
+    painter->setPen(QPen(Qt::black, 1));
+    painter->setFont(QFont("Arial", 10));
+
+    double padding = 0.1;
+    int extendRadius = radius * (1+padding);
+
+    // 绘制刻度标签(显示实际数据频率百分比)
+    painter->setFont(QFont("Arial", 8));
+    if (m_maxCount > 0) {
+
+        QVector<double> gridValues = calculateSmartGridValues(m_maxCount);
+        int numCircles = gridValues.size();
+
+        // 计算总数据量
+        int totalDataCount = 0;
+        auto iter = m_buffer.begin();
+        while(iter != m_buffer.end()){
+            totalDataCount += std::accumulate(iter->hist.begin(), iter->hist.end(), 0);
+            iter++;
+        }
+
+        qDebug() << "MAX: " <<  m_maxCount / float(totalDataCount);
+
+        for (int i = 1; i < numCircles; i++) {
+            double ratio = gridValues[i] / m_maxCount;
+            // 使用平方根归一化：与drawRoseDiagram2和drawGrid2保持一致
+            ratio = sqrt(gridValues[i]) / sqrt(m_maxCount);
+            int circleRadius = radius * ratio;
+            // 计算该格线对应的实际数据百分比
+            double actualPercentage = totalDataCount > 0 ? (gridValues[i] / totalDataCount * 100) : 0;
+            // 格式化显示: 保留1位小数或整数
+            QString percentageText;
+            if (actualPercentage < 1) {
+                percentageText = QString::number(actualPercentage, 'f', 1) + "%";
+            } else {
+                percentageText = QString::number(static_cast<int>(actualPercentage + 0.5)) + "%";
+            }
+            painter->drawText(centerX, centerY - circleRadius, percentageText);
+            qDebug() << percentageText;
+        }
+    } else {
+        // 没有数据时绘制固定标签
+        int numCircles = 5;
+        for (int i = 1; i <= numCircles; i++) {
+            int circleRadius = radius * i / numCircles;
+            int percentage = (int)((double)i / numCircles * 100 + 0.5);
+            painter->drawText(centerX + 10, centerY - circleRadius + 4, QString::number(percentage) + "%");
+        }
+    }
+
+    // 绘制360度数值标签
+    float angleSize = this->getAngleValueSize();
+    painter->setFont(QFont("Arial", angleSize));
+    for(int angle = 0; angle < 360; angle += 10){
+        double rad = qDegreesToRadians(angle - 90);
+        int labelX = centerX + (extendRadius) * cos(rad);
+        int labelY = centerY + (extendRadius) * sin(rad);
+        QFontMetrics metrics(painter->font());
+        QString angleText = QString::number(angle) + "°";
+        int textWidth = metrics.horizontalAdvance(angleText);
+        int textHeight = metrics.height();
+        int offsetX = labelX - textWidth / 2;
+        int offsetY = labelY + textHeight / 2;
+        painter->drawText(offsetX, offsetY, angleText);
+
+        // 绘制东南西北标签
+        QString directionItem = "";
+        if(angle == 0){
+            directionItem = NORTH_ITEM_NAME;
+            offsetY -= textHeight * 1.2;
+            painter->drawText(offsetX, offsetY, directionItem);
+        }
+        else if(angle == 90){
+            directionItem = EAST_ITEM_NAME;
+            offsetX += textWidth *1.2;
+            painter->drawText(offsetX, offsetY, directionItem);
+        }
+        else if(angle == 180){
+            directionItem = SOUTH_ITEM_NAME;
+            offsetY += textHeight*1.2;
+            painter->drawText(offsetX, offsetY, directionItem);
+        }
+        else if(angle == 270){
+            directionItem = WEST_ITEM_NAME;
+            offsetX -= textWidth *1.2;
+            painter->drawText(offsetX, offsetY, directionItem);
+        }
+    }
+    painter->restore();
+}
+void RoseWidget::drawRoseDiagram2(QPainter *painter, const QRect &rect){
+    painter->save();
+    int centerX = rect.center().x();
+    int centerY = rect.center().y();
+    int radius = qMin(rect.width(), rect.height()) / 2;
+
+    painter->setPen(QPen(Qt::black, 1));
+    painter->setBrush(QBrush(QColor(200, 200, 200)));
+
+    // 预留一些空间，与matplotlib的效果类似
+    double padding = PIE_PADDING_RATIO; // 5%的额外空间
+    int effectiveRadius = radius * (1 + padding);
+
+    // 绘制玫瑰图的每个扇区
+    auto iter = m_buffer.begin();
+    while(iter != m_buffer.end()){
+        for (int i = 0; i < 36; i++) {
+            double startAngle = (i * 10 - 90) * M_PI / 180;
+            double endAngle = ((i + 1) * 10 -90) * M_PI / 180;
+
+            // 计算扇区的半径比例(使用平方根归一化)
+            double radiusRatio = 0;
+            if (m_maxCount > 0) {
+                // 平方根归一化：避免极端值导致图形变形
+                radiusRatio = sqrt((double)m_buffer[iter.key()].hist[i]) / sqrt(m_maxCount);
+                // 可选：对数归一化，更平滑但可能过度压缩
+                // radiusRatio = log10(m_buffer[iter.key()].hist[i] + 1) / log10(m_maxCount + 1);
+            }
+            int sectorRadius = effectiveRadius * radiusRatio;
+            // 绘制扇区, 使用当前type对应的color
+            painter->setBrush(iter->color);
+            painter->drawPie(centerX - sectorRadius, centerY - sectorRadius,
+                             2 * sectorRadius, 2 * sectorRadius,
+                             -startAngle * 180 / M_PI * 16,
+                             -(endAngle - startAngle) * 180 / M_PI * 16);
+        }
+        iter++;
+    }
+    painter->restore();
+}
+
+
+QList<QRect> RoseWidget::calculateLabelRegion(const QRect& totalRegion){
+    QList<QRect> returned;
     // 查看有多少种产状类型被加载
     QStringList keys = m_buffer.keys();
     // 找到最长的字符宽度
@@ -360,8 +596,9 @@ QRect RoseWidget::calculateLabelRegion(const QRect& totalRegion){
             totalRegion.left() + labelStartPosX * labelRectWidth,
             totalRegion.top() + curRowIdx * labelColorRectSize, labelRectWidth, labelColorRectSize);
         labelStartPosX++;
+        returned.append(labelRect);
     }
-    return QRect();
+    return returned;
 }
 
 void RoseWidget::calculateHistogram(AzimuthStatistic& dips, const DipDataType & dataType){
@@ -391,19 +628,19 @@ void RoseWidget::calculateHistogram(AzimuthStatistic& dips, const DipDataType & 
     }
 
     // 处理0度和180度对称的情况
-    QVector<int> half(18, 0);
-    for (int i = 0; i < 18; i++) {
-        half[i] = dips.hist[i] + dips.hist[i + 18];
-        if (half[i] > m_maxCount) {
-            m_maxCount = half[i];
-        }
-    }
+    // QVector<int> half(18, 0);
+    // for (int i = 0; i < 18; i++) {
+    //     half[i] = dips.hist[i] + dips.hist[i + 18];
+    //     if (half[i] > m_maxCount) {
+    //         m_maxCount = half[i];
+    //     }
+    // }
 
-    // 复制到完整的36个区间
-    for (int i = 0; i < 18; i++) {
-        dips.hist[i] = half[i];
-        dips.hist[i + 18] = half[i];
-    }
+    // // 复制到完整的36个区间
+    // for (int i = 0; i < 18; i++) {
+    //     dips.hist[i] = half[i];
+    //     dips.hist[i + 18] = half[i];
+    // }
 }
 
 
