@@ -1,8 +1,6 @@
 #include "advanceddippane.h"
 #include "ui_advanceddippane.h"
 #include "stereonetwidget.h"
-#include "stereonetcontrolpane.h"
-#include "rosecontrolpane.h"
 #include "rosewidget.h"
 #include <QVBoxLayout>
 #include <QRandomGenerator>
@@ -14,7 +12,6 @@
 #include "propertypanel.h"
 // #include "intpropertyitem.h"
 #include "multiselectpropertyitem.h"
-#include "singleselectpropertyitem.h"
 #include "stringpropertyitem.h"
 
 const QString& PROPERTY_GEN_APPARENT_DIP_ITEM_NAME      = QObject::tr("Apparent Dip");
@@ -58,6 +55,7 @@ AdvancedDipPane::AdvancedDipPane(QWidget *parent)
     initPropertyPanel();
     // 测试数据
     onDataBrowserBtnClicked();
+    onAddPlaneClicked();
 }
 
 void AdvancedDipPane::sltValueChangedWithName(const QString& propertyName, const QVariant& value){
@@ -129,29 +127,24 @@ void AdvancedDipPane::onAddPlaneClicked()
         return;
     }
     
-    // 示例：添加一些测试平面
-    Plane plane1;
-    plane1.strike = 0.0; // 0度
-    plane1.dip = M_PI / 6.0; // 30度
-    m_stereonetWidget->addPlane(plane1);
+    // // 示例：添加一些测试平面
+    // Plane plane1;
+    // plane1.strike = 0.0; // 0度
+    // plane1.dip = M_PI / 6.0; // 30度
+    // m_stereonetWidget->addPlane(plane1);
     
-    Plane plane2;
-    plane2.strike = M_PI / 2.0; // 90度
-    plane2.dip = M_PI / 4.0; // 45度
-    m_stereonetWidget->addPlane(plane2);
+    // Plane plane2;
+    // plane2.strike = M_PI / 2.0; // 90度
+    // plane2.dip = M_PI / 4.0; // 45度
+    // m_stereonetWidget->addPlane(plane2);
     
-    Plane plane3;
-    plane3.strike = M_PI; // 180度
-    plane3.dip = M_PI / 3.0; // 60度
-    m_stereonetWidget->addPlane(plane3);
+    // Plane plane3;
+    // plane3.strike = M_PI; // 180度
+    // plane3.dip = M_PI / 3.0; // 60度
+    // m_stereonetWidget->addPlane(plane3);
 }
 
-void AdvancedDipPane::onClearClicked()
-{
-    if (m_stereonetWidget) {
-        m_stereonetWidget->clearPlanes();
-    }
-}
+void AdvancedDipPane::onClearClicked(){}
 
 void AdvancedDipPane::onProjectionTypeChanged(int index)
 {
@@ -207,7 +200,8 @@ void AdvancedDipPane::onDataBrowserBtnClicked(){
     }
     // 更新数据到图件当中
     m_roseWidget->setData(*m_dataInterface);
-    // TODO 更新数据到stereonet -> 董慧琨
+    // TODO 更新数据到stereonet
+    m_stereonetWidget->setData(*m_dataInterface);
 
 }
 

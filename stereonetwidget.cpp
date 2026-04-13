@@ -9,7 +9,16 @@
 #include "propertygroup.h"
 #include "floatpropertyitem.h"
 #include "singleselectpropertyitem.h"
-const QString& STEREONET_WIDGET_NAME = QObject::tr("Stereonet");
+#include <QRandomGenerator>
+const QString& STEREONET_WIDGET_NAME        = QObject::tr("Stereonet");
+const QString& PROPERTY_X_ROTATE            = QObject::tr("Initial X Rotation");
+const QString& PROPERTY_Y_ROTATE            = QObject::tr("Initial Y Rotation");
+const QString& PROPERTY_SHOW_PLANE          = QObject::tr("Show Plane");
+const QString& PROPERTY_PROJECT_TYPE        = QObject::tr("Projection Type");
+const QString& PROPERTY_EQUAL_AREA_PROJECT  = QObject::tr("Equal-Area");
+const QString& PROPERTY_EQUAL_ANGLE_PROJECT = QObject::tr("Equal-Angle");
+const QString& PROPERTY_YES                 = QObject::tr("Yes");
+const QString& PROPERTY_NO                  = QObject::tr("No");
 
 
 StereonetWidget::StereonetWidget(QWidget *parent)
@@ -20,10 +29,6 @@ StereonetWidget::StereonetWidget(QWidget *parent)
 {
     // 设置大小策略为可扩展，这样会填充整个可用空间
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    
-    // 初始计算半径
-    m_radius = qMin(width(), height()) / 2.0 - 20;
-    if (m_radius < 50) m_radius = 50; // 设置最小半径
     
     computeGrid();
     m_originalSmallCircles = m_smallCircles;
@@ -36,40 +41,50 @@ void StereonetWidget::setProjectionType(StereonetType type)
     update();
 }
 
-void StereonetWidget::addPlane(const Plane& plane)
-{
-    m_planes.append(plane);
+void StereonetWidget::setData(DipDataAccess& data){
+    m_buffer.clear();
+    QVector<QString> typeList;
+    data.getDipClassSet(typeList);
+    float sdep = 99999;
+    float edep = -99999;
+    for(int i = 0; i < typeList.size(); i++){
+        AzimuthStatistic statistic;
+        data.getDataByType(typeList[i], statistic.dips);
+        foreach(auto dip,  statistic.dips){
+            if(sdep > dip.depth){
+                sdep = dip.depth;
+            }
+            if(edep < dip.depth){
+                edep = dip.depth;
+            }
+        }
+
+        // 设置该类型对应的颜色
+        // TODO 需要找到更好的办法来设置类型颜色
+        int r = QRandomGenerator::global()->bounded(256);
+        int g = QRandomGenerator::global()->bounded(256);
+        int b = QRandomGenerator::global()->bounded(256);
+        statistic.color = QColor(r, g, b);
+        m_buffer.insert(typeList[i], statistic);
+    }
+    // 设置一下深度数据
+    setTopDepth(sdep);
+    setBottomDepth(edep);
     update();
 }
 
-void StereonetWidget::clearPlanes()
-{
-    m_planes.clear();
-    update();
-}
-
-void StereonetWidget::paintEvent(QPaintEvent *event)
-{
-    Q_UNUSED(event);
-
-    QPainter painter(this);
-    painter.setRenderHint(QPainter::Antialiasing, true);
-
-    QPoint center = rect().center();
-    painter.drawRect(rect());
-
+void StereonetWidget::drawGrid(QPainter* painter, QRect& rect){
+    painter->save();
     // 绘制参考圆
-    painter.setPen(QPen(Qt::black, 1));
-    painter.drawEllipse(center, static_cast<int>(m_radius), static_cast<int>(m_radius));
-
+    painter->setPen(QPen(Qt::black, 1));
+    painter->drawEllipse(rect.center(), static_cast<int>(m_radius), static_cast<int>(m_radius));
     // 1. 绘制小圆
-    painter.setPen(QPen(Qt::gray, 0.5));
+    painter->setPen(QPen(Qt::gray, 0.5));
     const double DIST_THRESHOLD = 0.05 * m_radius;
     for (const auto& circle : m_originalSmallCircles) {
         QPainterPath path;
         bool first = true;
         QPointF lastWp;
-
         for (const auto& p : circle) {
             // 反推原始球坐标
             double x = p.x();
@@ -98,7 +113,7 @@ void StereonetWidget::paintEvent(QPaintEvent *event)
 
             // 转回平面坐标+绘制
             QPointF rotatedP = m_stereonet.stCoordLine(rotatedTrend, rotatedPlunge, m_projectionType);
-            QPointF wp = mapToWidget(rotatedP);
+            QPointF wp = mapToWidget(rotatedP, rect);
 
             if (first) {
                 path.moveTo(wp);
@@ -115,11 +130,11 @@ void StereonetWidget::paintEvent(QPaintEvent *event)
                 }
             }
         }
-        painter.drawPath(path);
+        painter->drawPath(path);
     }
 
     // 2. 绘制大圆（经线，同步全向旋转）
-    painter.setPen(QPen(Qt::gray, 0.5));
+    painter->setPen(QPen(Qt::gray, 0.5));
     for (int i = 0; i < m_originalGreatCirclePoles.size(); ++i) {
         Line originalPole = m_originalGreatCirclePoles[i];
 
@@ -142,7 +157,7 @@ void StereonetWidget::paintEvent(QPaintEvent *event)
         bool first = true;
         QPointF lastWp;
         for (const auto& p : circle) {
-            QPointF wp = mapToWidget(p);
+            QPointF wp = mapToWidget(p, rect);
             if (first) {
                 painterPath.moveTo(wp);
                 first = false;
@@ -158,50 +173,110 @@ void StereonetWidget::paintEvent(QPaintEvent *event)
                 }
             }
         }
-        painter.drawPath(painterPath);
+        painter->drawPath(painterPath);
     }
+    painter->restore();
+}
 
+void StereonetWidget::drawPlane(QPainter* painter, QRect& rect){
     // 3. 绘制平面
-    painter.setPen(QPen(Qt::red, 1.5));
-    for (const auto& plane : m_planes) {
-        // 获取平面原始极点
-        Line planePole = m_stereonet.poleFromPlane(plane);
+    painter->save();
+    painter->setPen(QPen(Qt::red, 1.5));
+    auto iter = m_buffer.begin();
+    while(iter != m_buffer.end()){
 
-        // 全向旋转极点
-        double rotatedTrend, rotatedPlunge;
-        m_stereonet.rotate(0.0, 0.0, m_rotY, planePole.trend, planePole.plunge, false, rotatedTrend, rotatedPlunge);
-        m_stereonet.rotate(Stereonet::EAST, 0.0, m_rotX, rotatedTrend, rotatedPlunge, false, rotatedTrend, rotatedPlunge);
+        for(int i = 0; i < iter->dips.size(); i++){
+            // 获得平面极点
+            Plane plane;
+            plane.dip = iter->dips[i].trueDip;
+            plane.strike = iter->dips[i].strike;
+            Line planePole = m_stereonet.poleFromPlane(plane);
+            // 全向旋转极点
+            double rotatedTrend, rotatedPlunge;
+            m_stereonet.rotate(0.0, 0.0, m_rotY, planePole.trend, planePole.plunge, false, rotatedTrend, rotatedPlunge);
+            m_stereonet.rotate(Stereonet::EAST, 0.0, m_rotX, rotatedTrend, rotatedPlunge, false, rotatedTrend, rotatedPlunge);
 
-        // 生成旋转后的平面大圆弧
-        Line rotatedPole;
-        rotatedPole.trend = rotatedTrend;
-        rotatedPole.plunge = rotatedPlunge;
-        Plane rotatedPlane = m_stereonet.planeFromPole(rotatedPole);
-        QVector<QPointF> rotatedGreatCircle = m_stereonet.greatCircle(rotatedPlane, m_projectionType);
+            // // 生成旋转后的平面大圆弧
+            // Line rotatedPole;
+            // rotatedPole.trend = rotatedTrend;
+            // rotatedPole.plunge = rotatedPlunge;
+            // Plane rotatedPlane = m_stereonet.planeFromPole(rotatedPole);
+            // QVector<QPointF> rotatedGreatCircle = m_stereonet.greatCircle(rotatedPlane, m_projectionType);
 
-        // 绘制平面大圆弧
-        QPainterPath path;
-        bool first = true;
-        for (const auto& p : rotatedGreatCircle) {
-            QPointF wp = mapToWidget(p);
-            if (first) { path.moveTo(wp); first = false; }
-            else path.lineTo(wp);
+            // // 绘制平面大圆弧
+            // QPainterPath path;
+            // bool first = true;
+            // for (const auto& p : rotatedGreatCircle) {
+            //     QPointF wp = mapToWidget(p, rect);
+            //     if (first) { path.moveTo(wp); first = false; }
+            //     else path.lineTo(wp);
+            // }
+            // painter->drawPath(path);
+
+            // 绘制平面极点
+            QPointF polePoint = m_stereonet.stCoordLine(rotatedTrend, rotatedPlunge, m_projectionType);
+            QPointF widgetPolePoint = mapToWidget(polePoint, rect);
+            painter->setBrush(QBrush(Qt::blue));
+            painter->drawEllipse(widgetPolePoint, 3, 3);
+            painter->setBrush(Qt::NoBrush);
         }
-        painter.drawPath(path);
 
-        // 绘制平面极点
-        QPointF polePoint = m_stereonet.stCoordLine(rotatedTrend, rotatedPlunge, m_projectionType);
-        QPointF widgetPolePoint = mapToWidget(polePoint);
-        painter.setBrush(QBrush(Qt::blue));
-        painter.drawEllipse(widgetPolePoint, 3, 3);
-        painter.setBrush(Qt::NoBrush);
+        iter++;
+    }
+    painter->restore();
+}
+
+
+void StereonetWidget::paintEvent(QPaintEvent *event)
+{
+    Q_UNUSED(event);
+
+    QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing, true);
+
+    QRect rect = this->rect();
+    QRect labelTotalRect, diagramRectBoundingRect, diagramRect, abstractTotalRect;
+    // 获取有多少种rect
+    QStringList keys = m_buffer.keys();
+    calculateDrawArea(rect, labelTotalRect, diagramRectBoundingRect, diagramRect, abstractTotalRect);
+#ifdef DEBUG_MODE
+    debug_drawRect(&painter, DEBUG_CANVAS_RECT_COLOR    , rect,                     "Rect");
+    // debug_drawRect(&painter, DEBUG_PLOT_RECT_COLOR      , diagramRectBoundingRect,  "Outside Rect");
+    // debug_drawRect(&painter, DEBUG_PLOT_RECT_COLOR      , diagramRect,              "Inside Rect");
+    // debug_drawRect(&painter, DEBUG_INFO_RECT_COLOR      , labelTotalRect,           "Label Rect");
+    // debug_drawRect(&painter, DEBUG_INFO_RECT_COLOR      , abstractTotalRect,        "Abstract Rect");
+#endif
+
+    if(m_buffer.size() == 0){
+        painter.drawText(diagramRect.center(), "No data");
+        return;
     }
 
-    // 方向标记
-    painter.setPen(QPen(Qt::black, 1));
+    // TODO 绘制画布
+    drawCanvas(&painter, diagramRectBoundingRect);
 
+    // 初始计算半径
+    m_radius = qMin(diagramRect.width(), diagramRect.height()) / 2.0 - 20;
+    if (m_radius < 50) m_radius = 50; // 设置最小半径
+
+    drawGrid(&painter, diagramRect);
+
+    drawPlane(&painter, diagramRect);
 
     // drawInfo(&painter, rect());
+    // 整理绘图摘要的信息
+    QStringList abstractList;
+    // Plot name.
+    abstractList << QString(tr("Stereonet : %1").arg("DIP TEST"));
+    QString indexType = "M";
+    // 深度信息
+    abstractList << QString(tr("Reference(%1) : [%2 - %3]").arg(indexType).arg(getTopDepth()).arg(getBottomDepth()));
+    // 绘图摘要信息
+    // TODO 使用等积或者等角投影
+    abstractList << QString(tr("Stereonet - %1"));
+    drawAbstractInfo(&painter, abstractTotalRect, abstractList);
+    // 绘制label
+    drawTypeLabel(&painter, labelTotalRect, keys);
 }
 
 void StereonetWidget::resizeEvent(QResizeEvent *event)
@@ -249,9 +324,9 @@ void StereonetWidget::computeGrid()
     m_originalGreatCircles = m_greatCircles;
 }
 
-QPointF StereonetWidget::mapToWidget(const QPointF& point) const
+QPointF StereonetWidget::mapToWidget(const QPointF& point, const QRect& rect) const
 {
-    QPoint center = rect().center();
+    QPoint center = rect.center();
     return QPointF(center.x() + point.x() * m_radius, center.y() - point.y() * m_radius);
 }
 
@@ -296,18 +371,13 @@ void StereonetWidget::initProperties(){
 
     // Stereonet相关属性
     // 初始南北偏移角度
-    FloatPropertyItem* initialXRotation  = new FloatPropertyItem(tr("Initial X Rotation"), 0.0, 360.0, 90.0, m_propertyGroup);
-    m_propertyGroup->addProperty(initialXRotation);
+    createProperty<FloatPropertyItem>(PROPERTY_X_ROTATE, 0.0, 360.0, 90.0);
     // 初始东西偏移角度
-    FloatPropertyItem* initialYRotation  = new FloatPropertyItem(tr("Initial Y Rotation"), 0.0, 360.0, 0.0, m_propertyGroup);
-    m_propertyGroup->addProperty(initialYRotation);
+    createProperty<FloatPropertyItem>(PROPERTY_Y_ROTATE, 0.0, 360.0, 0.0);
     // 是否显示平面
-    SingleSelectPropertyItem* showPlane = new SingleSelectPropertyItem(tr("Show Plane"), {tr("Yes"), tr("No")}, 0, m_propertyGroup);
-    m_propertyGroup->addProperty(showPlane);
+    createProperty<SingleSelectPropertyItem>(PROPERTY_SHOW_PLANE, QStringList({PROPERTY_YES, PROPERTY_NO}), 0);
     // Stereonet的投影类型
-    SingleSelectPropertyItem* projectionType = new SingleSelectPropertyItem(tr("Projection Type"), {tr("Equal-Area"), tr("Equal-Angle")}, 0, m_propertyGroup);
-    m_propertyGroup->addProperty(projectionType);
-
+    createProperty<SingleSelectPropertyItem>(PROPERTY_PROJECT_TYPE, QStringList({PROPERTY_EQUAL_AREA_PROJECT, PROPERTY_EQUAL_ANGLE_PROJECT}), 0);
 }
 
 void StereonetWidget::onUpdateWithPropertyChanged(const QString& propertyName, const QVariant& value){

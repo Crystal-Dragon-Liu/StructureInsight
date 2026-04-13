@@ -39,7 +39,6 @@ RoseWidget::RoseWidget(QWidget *parent)
 RoseWidget::~RoseWidget(){}
 
 void RoseWidget:: setData(DipDataAccess& data){
-    // QRandomGenerator::global()->seed(QDateTime::currentMSecsSinceEpoch());
     m_buffer.clear();
     QVector<QString> typeList;
     data.getDipClassSet(typeList);
@@ -223,7 +222,7 @@ void RoseWidget::setTitle(const QString &title)
 }
 
 
-void RoseWidget::drawGrid2(QPainter *painter, const QRect &rect){
+void RoseWidget::drawGrid(QPainter *painter, const QRect &rect){
     painter->save();
     int centerX = rect.center().x();
     int centerY = rect.center().y();
@@ -337,48 +336,12 @@ void RoseWidget::paintEvent(QPaintEvent *event)
 
     QRect rect = this->rect();
 
+    QRect labelTotalRect, diagramRectBoundingRect, diagramRect, abstractTotalRect;
     // 获取有多少种rect
     QStringList keys = m_buffer.keys();
-    float fontSize = getInfoFontSize();
-    auto font = QFont("Arial", fontSize);
-    QFontMetrics metrics(font);
-    // 所有label排列后的高度
-    int keyMaxHeight = metrics.height();
-    int keyTotalHeight = keyMaxHeight * (keys.size() + 1) + keys.size() * TEXT_HEIGHT_OFFSET*6;
 
-    // 头顶图像摘要
-    int abstractTotalRectMaxHeight = keyMaxHeight * 3;
-    int margin = 100;
-    // 将绘制区域分割为上下两个区域, 上区域为玫瑰图区域
-    int space = TEXT_HEIGHT_OFFSET * 6;
+    calculateDrawArea(rect, labelTotalRect, diagramRectBoundingRect, diagramRect, abstractTotalRect);
 
-    QRect labelTotalRect = QRect(
-        rect.left() + margin /2,
-        rect.top() + rect.height() - margin/2 - keyTotalHeight + space,
-        rect.width() - margin,
-        keyTotalHeight
-    );
-
-    // 外部绘制区域
-    QRect diagramRectBoundingRect = rect.adjusted(
-        margin / 2,
-        margin / 2 + abstractTotalRectMaxHeight + space,
-        -margin / 2,
-        -margin / 2 - keyTotalHeight
-    );
-    // 核心绘制区域
-    QRect diagramRect = diagramRectBoundingRect.adjusted(
-        margin/2    + TEXT_HEIGHT_OFFSET*4,
-        margin/2    + TEXT_HEIGHT_OFFSET*4,
-        -margin/2   - TEXT_HEIGHT_OFFSET*4,
-        -margin/2   - TEXT_HEIGHT_OFFSET*4);
-    // 绘图摘要放置区域
-    QRect abstractTotalRect = QRect(
-        rect.left() + margin / 2,
-        rect.top() + margin/2,
-        rect.width() - margin,
-        abstractTotalRectMaxHeight
-    );
 
 #ifdef DEBUG_MODE
     debug_drawRect(&painter, DEBUG_CANVAS_RECT_COLOR    , rect,                     "Rect");
@@ -396,13 +359,13 @@ void RoseWidget::paintEvent(QPaintEvent *event)
     // TODO 绘制画布
     drawCanvas(&painter, diagramRectBoundingRect);
     // 绘制网格
-    drawGrid2(&painter, diagramRect);
+    drawGrid(&painter, diagramRect);
 
     // 绘制玫瑰图
-    drawRoseDiagram2(&painter, diagramRect);
+    drawRoseDiagram(&painter, diagramRect);
 
     // 绘制label(包括颜色等)
-    drawLabels2(&painter, diagramRect);
+    drawLabels(&painter, diagramRect);
 
     // 整理绘图摘要的信息
     QStringList abstractList;
@@ -410,20 +373,16 @@ void RoseWidget::paintEvent(QPaintEvent *event)
     abstractList << QString(tr("Stereonet : %1").arg("DIP TEST"));
     QString indexType = "M";
     // 深度信息
-    abstractList << QString(tr("Reference(%1) : [%2 - %3]")
-                                .arg(indexType)
-                                .arg(getTopDepth())
-                                .arg(getBottomDepth()));
+    abstractList << QString(tr("Reference(%1) : [%2 - %3]").arg(indexType).arg(getTopDepth()).arg(getBottomDepth()));
     // 绘图摘要信息
     abstractList << QString(tr("Rose - %1").arg(getDipDataTypeStr()));
     drawAbstractInfo(&painter, abstractTotalRect, abstractList);
-
     // 绘制label
     drawTypeLabel(&painter, labelTotalRect, keys);
 
 }
 
-void RoseWidget::drawLabels2(QPainter* painter, const QRect& rect){
+void RoseWidget::drawLabels(QPainter* painter, const QRect& rect){
     painter->save();
     int centerX = rect.center().x();
     int centerY = rect.center().y();
@@ -449,8 +408,6 @@ void RoseWidget::drawLabels2(QPainter* painter, const QRect& rect){
             iter++;
         }
 
-        qDebug() << "MAX: " <<  m_maxCount / float(totalDataCount);
-
         for (int i = 1; i < numCircles; i++) {
             double ratio = gridValues[i] / m_maxCount;
             // 使用平方根归一化：与drawRoseDiagram2和drawGrid2保持一致
@@ -466,7 +423,6 @@ void RoseWidget::drawLabels2(QPainter* painter, const QRect& rect){
                 percentageText = QString::number(static_cast<int>(actualPercentage + 0.5)) + "%";
             }
             painter->drawText(centerX, centerY - circleRadius, percentageText);
-            qDebug() << percentageText;
         }
     } else {
         // 没有数据时绘制固定标签
@@ -518,7 +474,7 @@ void RoseWidget::drawLabels2(QPainter* painter, const QRect& rect){
     }
     painter->restore();
 }
-void RoseWidget::drawRoseDiagram2(QPainter *painter, const QRect &rect){
+void RoseWidget::drawRoseDiagram(QPainter *painter, const QRect &rect){
     painter->save();
     int centerX = rect.center().x();
     int centerY = rect.center().y();
@@ -549,10 +505,7 @@ void RoseWidget::drawRoseDiagram2(QPainter *painter, const QRect &rect){
             int sectorRadius = effectiveRadius * radiusRatio;
             // 绘制扇区, 使用当前type对应的color
             painter->setBrush(iter->color);
-            painter->drawPie(centerX - sectorRadius, centerY - sectorRadius,
-                             2 * sectorRadius, 2 * sectorRadius,
-                             -startAngle * 180 / M_PI * 16,
-                             -(endAngle - startAngle) * 180 / M_PI * 16);
+            painter->drawPie(centerX - sectorRadius, centerY - sectorRadius, 2 * sectorRadius, 2 * sectorRadius, -startAngle * 180 / M_PI * 16, -(endAngle - startAngle) * 180 / M_PI * 16);
         }
         iter++;
     }

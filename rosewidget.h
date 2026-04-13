@@ -58,16 +58,16 @@ private:
     /*
      * @brief 绘制Rose图
      */
-    void drawRoseDiagram2(QPainter *painter, const QRect &rect);
+    void drawRoseDiagram(QPainter *painter, const QRect &rect);
     /*
      * @brief 绘制玫瑰图网格
      * @details TODO 目前网格数量是固定的, 等待优化完善
      */
-    void drawGrid2(QPainter *painter, const QRect &rect);
+    void drawGrid(QPainter *painter, const QRect &rect);
     /*
      * @brief 绘制网格旁边的label
      */
-    void drawLabels2(QPainter *painter, const QRect &rect);
+    void drawLabels(QPainter *painter, const QRect &rect);
 
     QVector<double> calculateSmartGridValues(double maxValue);
 

@@ -15,11 +15,11 @@ public:
     explicit StereonetWidget(QWidget *parent = nullptr);
     
     void setProjectionType(StereonetType type);
-    void addPlane(const Plane& plane);
-    void clearPlanes();
     /*@brief 初始化属性*/
     void initProperties() override;
     PropertyGroup* getPropertyGroup() { return m_propertyGroup; }
+
+    void setData(DipDataAccess& data);
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -30,14 +30,16 @@ protected:
     void mouseMoveEvent(QMouseEvent *event) override;
 
 private:
+    void drawGrid(QPainter* painter, QRect& rect);
+
+    void drawPlane(QPainter* painter, QRect& rect);
 
     void computeGrid();
-    QPointF mapToWidget(const QPointF& point) const;
+    QPointF mapToWidget(const QPointF& point, const QRect& rect) const;
     double widgetToStereonet(double value) const;
 
     StereonetType m_projectionType;
     Stereonet m_stereonet;
-    QVector<Plane> m_planes;
     QVector<QVector<QPointF>> m_greatCircles;
     QVector<QVector<QPointF>> m_smallCircles;
     double m_radius;

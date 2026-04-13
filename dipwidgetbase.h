@@ -48,6 +48,16 @@ public:
     void setDataNum(float data) {m_dataNum = data;}
 
 protected:
+
+    /*
+     * @brief 计算绘制区域
+     * @param labelTotalRect 标签绘制区域（一般在顶部）
+     * @param diagramRectBoundingRect 绘制plot的外层区域
+     * @param diagramRect plot绘制的实际区域, 比diagramRectBoundingRect小一圈
+     * @param abstractTotalRect
+    */
+    void calculateDrawArea(const QRect& rect, QRect& labelTotalRect, QRect& diagramRectBoundingRect, QRect& diagramRect, QRect& abstractTotalRect);
+
     /*@brief 绘制监控变量*/
     void drawAbstractInfo(QPainter* painter, const QRect& rect, const QStringList& infoList);
 

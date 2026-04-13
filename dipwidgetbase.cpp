@@ -196,3 +196,36 @@ void DipWidgetBase::drawAbstractInfo(QPainter* painter, const QRect& rect, const
     }
     painter->restore();
 }
+
+void DipWidgetBase::calculateDrawArea(const QRect& rect, QRect& labelTotalRect, QRect& diagramRectBoundingRect, QRect& diagramRect, QRect& abstractTotalRect){
+    // 获取有多少种rect
+    QStringList keys = m_buffer.keys();
+    float fontSize = getInfoFontSize();
+    auto font = QFont("Arial", fontSize);
+    QFontMetrics metrics(font);
+    // 所有label排列后的高度
+    int keyMaxHeight = metrics.height();
+    int keyTotalHeight = keyMaxHeight * (keys.size() + 1) + keys.size() * TEXT_HEIGHT_OFFSET*6;
+    // 头顶图像摘要
+    int abstractTotalRectMaxHeight = keyMaxHeight * 3;
+    int margin = 100;
+    // 将绘制区域分割为上下两个区域, 上区域为玫瑰图区域
+    int space = TEXT_HEIGHT_OFFSET * 6;
+    labelTotalRect = QRect(rect.left() + margin /2, rect.top() + rect.height() - margin/2 - keyTotalHeight + space, rect.width() - margin, keyTotalHeight);
+    // 外部绘制区域
+    diagramRectBoundingRect = rect.adjusted(margin / 2, margin / 2 + abstractTotalRectMaxHeight + space, -margin / 2, -margin / 2 - keyTotalHeight);
+
+    // 核心绘制区域
+    diagramRect = diagramRectBoundingRect.adjusted(margin/2    + TEXT_HEIGHT_OFFSET*4, margin/2    + TEXT_HEIGHT_OFFSET*4, -margin/2 - TEXT_HEIGHT_OFFSET*4, -margin/2 - TEXT_HEIGHT_OFFSET*4);
+
+    // 绘图摘要放置区域
+    abstractTotalRect = QRect(rect.left() + margin / 2, rect.top() + margin/2, rect.width() - margin, abstractTotalRectMaxHeight);
+#ifdef DEBUG_MODE
+    debug_drawRect(&painter, DEBUG_CANVAS_RECT_COLOR    , rect,                     "Rect");
+    // debug_drawRect(&painter, DEBUG_PLOT_RECT_COLOR      , diagramRectBoundingRect,  "Outside Rect");
+    // debug_drawRect(&painter, DEBUG_PLOT_RECT_COLOR      , diagramRect,              "Inside Rect");
+    // debug_drawRect(&painter, DEBUG_INFO_RECT_COLOR      , labelTotalRect,           "Label Rect");
+    // debug_drawRect(&painter, DEBUG_INFO_RECT_COLOR      , abstractTotalRect,        "Abstract Rect");
+#endif
+
+}
