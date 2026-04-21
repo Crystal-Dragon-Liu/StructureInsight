@@ -189,7 +189,7 @@ void StereonetWidget::drawPlane(QPainter* painter, QRect& rect){
             // 获得平面极点
             Plane plane;
             plane.dip = iter->dips[i].trueDip;
-            plane.strike = iter->dips[i].strike;
+            plane.strike = iter->dips[i].trueAzi;
             Line planePole = m_stereonet.poleFromPlane(plane);
             // 全向旋转极点
             double rotatedTrend, rotatedPlunge;

@@ -53,8 +53,8 @@ qt_add_executable(EVStereonet
     stereonetwidget.h
     stereonetwidget.cpp
     advanceddippane.h advanceddippane.cpp advanceddippane.ui
-    stereonetcontrolpane.h stereonetcontrolpane.cpp stereonetcontrolpane.ui
-    rosecontrolpane.h rosecontrolpane.cpp rosecontrolpane.ui
+
+
     rosewidget.h rosewidget.cpp
     dipdataaccess.h dipdataaccess.cpp
     propertygroup.h propertygroup.cpp

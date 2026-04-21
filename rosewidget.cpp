@@ -8,6 +8,8 @@
 #include <QDateTime>
 #include <QColor>
 
+#define USE_PROPERTY_WIDGET
+
 // 属性名常量
 const QString& PROPERTY_MAX_FREQ        = QObject::tr("Max Frequency");
 const QString& PROPERTY_ANGLE_SIZE      = QObject::tr("Angle Size");
